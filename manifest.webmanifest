@@ -1,0 +1,31 @@
+{
+  "name": "MoonCRM",
+  "short_name": "MoonCRM",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f7",
+  "theme_color": "#1d6574",
+  "description": "ניהול מטופלים לסטודנטים לרפואת שיניים",
+  "icons": [
+    {
+      "src": "mooncrm-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "mooncrm-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "mooncrm-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

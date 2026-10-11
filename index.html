@@ -1,26 +1,2106 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MoonCRM</title>
-<link rel="icon" href="mooncrm-icon-96.png">
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>MoonCRM</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="mooncrm-icon-96.png">
+  <link rel="apple-touch-icon" href="mooncrm-icon-180.png">
+  <meta name="theme-color" content="#1d6574">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MoonCRM">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="MoonCRM – ניהול מטופלים לסטודנטים לרפואת שיניים">
+  <script>
+    // Any script error lands on the page itself: inside Apps Script's sandbox frames the console is hard to reach.
+    window.addEventListener('error', function (e) {
+      var v = document.getElementById('view');
+      if (!v) return;
+      var d = document.createElement('div');
+      d.className = 'card';
+      d.style.cssText = 'direction:ltr;text-align:left;font:13px monospace;white-space:pre-wrap;color:#c0392b';
+      d.textContent = 'Error: ' + e.message + '\n' + (e.filename || '') + ':' + e.lineno + ':' + e.colno;
+      v.appendChild(d);
+    });
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #f4f7f7; --ink: #18302e; --muted: #5f7573; --brand: #1d6574; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0f1716; --ink: #e5efed; --muted: #94a8a5; --brand: #5fb0bd; } }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 Heebo, -apple-system, "Segoe UI", Arial, sans-serif; text-align: center; }
-  main { max-width: 560px; margin: 0 auto; padding: 48px 16px; }
-  img { width: 180px; max-width: 60%; background: #f3f6f6; border-radius: 24px; padding: 12px; }
-  .muted { color: var(--muted); } a { color: var(--brand); }
+:root {
+  --bg: #f4f7f7; --card: #ffffff; --ink: #18302e; --muted: #5f7573; --line: #dfe8e7;
+  --brand: #1d6574; --brand-ink: #ffffff; --brand-soft: #e2eff1;
+  --warn: #b26a00; --warn-soft: #fff3df; --danger: #c0392b; --danger-soft: #fde9e7;
+  --ok: #2e7d32; --ok-soft: #e5f4e6; --new: #5b4bc4; --new-soft: #ecebfb;
+  --wa: #1fa855; --shadow: 0 1px 2px rgba(16,40,38,.06), 0 2px 8px rgba(16,40,38,.05);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1716; --card: #18221f; --ink: #e5efed; --muted: #94a8a5; --line: #26332f;
+    --brand: #5fb0bd; --brand-ink: #062126; --brand-soft: #16343a;
+    --warn: #f0a640; --warn-soft: #33270f; --danger: #ef6f61; --danger-soft: #3a1c18;
+    --ok: #6cc070; --ok-soft: #1b2f1c; --new: #a99cff; --new-soft: #26224a; --shadow: none;
+  }
+  /* The logo is dark teal on paper: give it its paper back so it stays readable. */
+  .brand-logo { background: #f3f6f6; border-radius: 18px; padding: 10px 14px; }
+  .top h1 img { background: #f3f6f6; border-radius: 9px; padding: 2px; }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font-family: Heebo, -apple-system, "Segoe UI", Arial, sans-serif; font-size: 16px; line-height: 1.45; direction: rtl; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--brand); }
+
+/* ---------- shell ---------- */
+.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top h1 { font-size: 20px; margin: 0; flex: 1; white-space: nowrap; color: var(--brand); display: flex; align-items: center; gap: 8px; }
+.top h1 img { width: 34px; height: 34px; }
+.brand-logo { display: block; width: 160px; max-width: 55%; margin: 4px auto 10px; }
+.top .sync { font-size: 12px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view { padding: 12px 16px calc(84px + env(safe-area-inset-bottom)); max-width: 760px; margin: 0 auto; }
+.tabs { position: fixed; bottom: 0; inset-inline: 0; z-index: 20; display: flex; background: var(--card);
+  border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.tabs button { flex: 1; border: 0; background: none; padding: 8px 2px 10px; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tabs button .ico { font-size: 20px; line-height: 1.1; }
+.tabs button.on { color: var(--brand); font-weight: 700; }
+#busy { position: fixed; top: 0; inset-inline: 0; height: 3px; z-index: 50; background: var(--brand); transform-origin: right; animation: busy 1s ease-in-out infinite; display: none; }
+#busy.on { display: block; }
+@keyframes busy { 0% { transform: scaleX(.1); } 50% { transform: scaleX(.7); } 100% { transform: scaleX(.1) translateX(-900%); } }
+#toast { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); inset-inline: 16px; z-index: 60; display: flex; justify-content: center; pointer-events: none; }
+#toast div { background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; max-width: 520px; box-shadow: var(--shadow); white-space: pre-line; }
+#toast div.err { background: var(--danger); color: #fff; }
+
+/* ---------- building blocks ---------- */
+h2 { font-size: 17px; margin: 20px 0 8px; display: flex; align-items: center; gap: 8px; }
+h2 .count { font-size: 13px; background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: 0 8px; }
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line); padding: 12px 14px; margin-bottom: 10px; }
+.card.tap { cursor: pointer; }
+.row { display: flex; align-items: center; gap: 8px; }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--muted); font-size: 14px; }
+.small { font-size: 13px; }
+.name { font-weight: 700; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+.badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); white-space: nowrap; }
+.badge.new { background: var(--new-soft); color: var(--new); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.danger { background: var(--danger-soft); color: var(--danger); }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.gray { background: var(--line); color: var(--muted); }
+
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.btn.wa { background: var(--wa); border-color: var(--wa); color: #fff; font-weight: 600; }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: none; }
+.btn.ghost { border-color: transparent; background: none; color: var(--brand); }
+.btn.sm { padding: 4px 10px; font-size: 14px; }
+.btn.block { width: 100%; justify-content: center; padding: 11px; }
+.btn:disabled { opacity: .5; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 14px; white-space: nowrap; cursor: pointer; }
+.chip.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+
+label.f { display: block; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
+input.i, select.i, textarea.i { width: 100%; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 9px 11px; }
+textarea.i { min-height: 90px; resize: vertical; }
+input.i:focus, select.i:focus, textarea.i:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: var(--card); padding: 8px; cursor: pointer; }
+.seg button.on { background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+
+/* ---------- today ---------- */
+.todo { border-inline-start: 4px solid var(--brand); }
+.todo.recall { border-inline-start-color: var(--warn); }
+.pill-new { display: flex; align-items: center; gap: 10px; background: var(--new-soft); color: var(--new); border-radius: var(--radius); padding: 12px 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+.p-line { display: flex; gap: 6px; align-items: baseline; font-size: 14px; color: var(--muted); }
+
+/* ---------- table ---------- */
+.tbl-wrap { overflow-x: auto; background: var(--card); border-radius: var(--radius); border: 1px solid var(--line); }
+table.tbl { border-collapse: collapse; min-width: 980px; width: 100%; font-size: 14px; }
+.tbl th { position: sticky; top: 0; background: var(--brand-soft); color: var(--ink); text-align: start; padding: 8px; font-weight: 600; white-space: nowrap; }
+.tbl td { border-top: 1px solid var(--line); padding: 8px; vertical-align: top; white-space: pre-line; }
+.tbl td:first-child, .tbl th:first-child { position: sticky; right: 0; background: var(--card); z-index: 1; }
+.tbl th:first-child { background: var(--brand-soft); }
+.tbl tr.new td { background: var(--new-soft); }
+.tbl tr.closed td { color: var(--muted); }
+.tbl tr { cursor: pointer; }
+.tbl select { font-size: 13px; padding: 3px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); }
+
+/* ---------- patient card ---------- */
+.back { border: 0; background: none; color: var(--brand); font-size: 15px; padding: 4px 0; cursor: pointer; }
+.hero { display: flex; align-items: flex-start; gap: 10px; margin: 6px 0 12px; }
+.hero h2 { font-size: 22px; margin: 0; }
+.alert { background: var(--danger-soft); color: var(--danger); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px; font-size: 14px; }
+.alert.info { background: var(--new-soft); color: var(--new); }
+.alert.calm { background: var(--ok-soft); color: var(--ok); }
+.t-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+.t-item:first-child { border-top: 0; }
+.t-date { min-width: 64px; text-align: center; font-size: 13px; color: var(--muted); }
+.t-date b { display: block; font-size: 16px; color: var(--ink); }
+.form-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+.form-row:first-child { border-top: 0; }
+.form-row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--brand); }
+.form-row.done span { text-decoration: line-through; color: var(--muted); }
+
+/* ---------- requirements ---------- */
+.bar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; display: flex; flex-direction: row; }
+.bar .d { background: var(--brand); }
+.bar .s { background: repeating-linear-gradient(-45deg, var(--brand) 0 4px, var(--brand-soft) 4px 8px); }
+.req-row { padding: 10px 0; border-top: 1px solid var(--line); }
+.req-row:first-of-type { border-top: 0; }
+
+/* ---------- bottom sheet ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--card); width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); animation: up .18s ease-out; }
+.sheet h3 { margin: 0 0 8px; font-size: 18px; }
+@keyframes up { from { transform: translateY(30px); opacity: .5; } to { transform: none; opacity: 1; } }
+.preview { white-space: pre-wrap; background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 15px; border: 1px dashed var(--line); }
+.varchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.varchips button { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; font-size: 13px; padding: 3px 8px; cursor: pointer; }
+.hidden { display: none !important; }
+@media (min-width: 900px) { #view { max-width: 1100px; } }
 </style>
+
 </head>
 <body>
-<main>
-  <img src="mooncrm-logo-360.png" alt="MoonCRM">
-  <h1>MoonCRM</h1>
-  <p>ניהול מטופלים לסטודנטים לרפואת שיניים – תורים, תזכורות, הודעות ודרישות קליניות, בתוך חשבון הגוגל שלך.</p>
-  <p class="muted">האפליקציה עולה בקרוב בכתובת הזו.</p>
-  <p><a href="privacy.html">מדיניות פרטיות</a></p>
-</main>
+  <div id="busy"></div>
+  <header class="top">
+    <h1><img id="brandIcon" alt="">MoonCRM</h1>
+    <span class="sync" id="syncLabel"></span>
+    <button class="btn sm" id="syncBtn" title="ייבוא מהטופס וסנכרון מהיומן">⟳</button>
+    <button class="btn sm" id="settingsBtn" title="הגדרות">⚙️</button>
+  </header>
+  <main id="view"><div class="empty">טוען…</div></main>
+  <nav class="tabs" id="tabs">
+    <button data-tab="today"><span class="ico">🏠</span>היום</button>
+    <button data-tab="table"><span class="ico">📋</span>מטופלים</button>
+    <button data-tab="schedule"><span class="ico">📅</span>לו״ז</button>
+    <button data-tab="messages"><span class="ico">💬</span>הודעות</button>
+    <button data-tab="templates"><span class="ico">📝</span>תבניות</button>
+    <button data-tab="reqs"><span class="ico">🎯</span>דרישות</button>
+  </nav>
+  <div id="toast"></div>
+  <script>
+/*
+ * MoonCRM site shell – only on mooncrm.github.io (not in the Apps Script page).
+ * Signs the user in with Google (OAuth redirect, no popups – works in installed iPhone/Android apps)
+ * and provides the tiny part of google.script.* the app uses, calling the same server code
+ * through the Apps Script API (scripts.run) as the signed-in user.
+ */
+(function () {
+  const CFG = {"clientId": "84881500227-pv5ubp92guerdcoc3qg8qotgisnhutto.apps.googleusercontent.com", "deploymentId": "AKfycbwKx_mRaV4Vg37UCYZYHhFK3LNHONUvXdHUXAftUsXpUMOsVE8kWXR9FNkzCHpocLA7Aw", "scopes": ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/script.send_mail", "https://www.googleapis.com/auth/script.external_request", "https://www.googleapis.com/auth/script.scriptapp", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/cloud-platform"]};
+  const AUTH = 'mooncrm.auth', NONCE = 'mooncrm.nonce', INSTALL_SEEN = 'mooncrm.installSeen';
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
+  };
+  const redirectUri = location.origin + location.pathname.replace(/index\.html$/, '');
+
+  // 1. Back from Google: #access_token=…&state=…
+  (function takeToken() {
+    const raw = location.hash.slice(1);
+    if (!/(^|&)(access_token|error)=/.test(raw)) return;
+    const p = new URLSearchParams(raw);
+    let state = {};
+    try { state = JSON.parse(atob(p.get('state') || '')); } catch (e) { /* tampered */ }
+    const nonce = store.get(NONCE);
+    store.set(NONCE, null);
+    if (p.get('access_token') && state.n && state.n === nonce) {
+      const prev = store.get(AUTH) || {};
+      store.set(AUTH, { token: p.get('access_token'), exp: Date.now() + (Number(p.get('expires_in') || 3600) - 120) * 1000, hint: prev.hint || '' });
+    } else if (p.get('error')) {
+      window.__moonAuthError = p.get('error') === 'access_denied' ? 'ההתחברות בוטלה.' : 'ההתחברות נכשלה (' + p.get('error') + ').';
+    }
+    history.replaceState(null, '', location.pathname + (state.r ? '#' + state.r : ''));
+  })();
+
+  function signIn(silent) {
+    const n = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    store.set(NONCE, n);
+    const a = store.get(AUTH) || {};
+    const q = new URLSearchParams({
+      client_id: CFG.clientId, redirect_uri: redirectUri, response_type: 'token', scope: CFG.scopes.join(' '),
+      include_granted_scopes: 'true', state: btoa(JSON.stringify({ n, r: location.hash.slice(1) }))
+    });
+    if (a.hint) q.set('login_hint', a.hint);
+    if (!silent) q.set('prompt', 'select_account');
+    location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + q.toString();
+  }
+  window.mooncrmSignOut = () => { store.set(AUTH, null); location.reload(); };
+
+  /** First visit / signed out: a welcome screen instead of an automatic jump to Google. */
+  function landing() {
+    window.__moonAuthWait = true;
+    ['tabs', 'syncBtn', 'settingsBtn'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+    const v = document.getElementById('view');
+    v.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.textAlign = 'center';
+    card.innerHTML = '<img class="brand-logo" alt="MoonCRM"><h2 style="justify-content:center;margin-top:0">MoonCRM</h2>' +
+      '<p>ניהול מטופלים לסטודנטים לרפואת שיניים – תורים, תזכורות, הודעות ודרישות קליניות. הכול נשמר בחשבון הגוגל שלך.</p>' +
+      '<div class="actions" style="justify-content:center"><button class="btn primary block" id="gsi">התחברות עם Google</button></div>' +
+      '<p class="muted small" style="margin-top:12px">בכניסה הראשונה גוגל תציג "Google hasn\'t verified this app" – ללחוץ Advanced ואז "Go to MoonCRM". ' +
+      '<a href="privacy.html" target="_blank">מדיניות פרטיות</a></p>' +
+      (window.__moonAuthError ? '<div class="alert small">' + window.__moonAuthError + '</div>' : '');
+    card.querySelector('img').src = (window.BRAND || {}).logo || 'mooncrm-logo-360.png';
+    card.querySelector('#gsi').onclick = () => signIn(false);
+    v.appendChild(card);
+  }
+
+  let tokenInfoAsked = false;
+  async function rememberEmail(token) {
+    if (tokenInfoAsked) return;
+    tokenInfoAsked = true;
+    try {
+      const r = await fetch('https://oauth2.googleapis.com/tokeninfo?access_token=' + encodeURIComponent(token));
+      const j = await r.json();
+      const a = store.get(AUTH);
+      if (a && j.email) { a.hint = j.email; store.set(AUTH, a); }
+    } catch (e) { /* only a convenience */ }
+  }
+
+  async function runApi(name, args) {
+    const a = store.get(AUTH);
+    if (!a || !a.token) { landing(); return new Promise(() => {}); }
+    if (a.exp < Date.now()) { window.__moonAuthWait = true; signIn(true); return new Promise(() => {}); }
+    rememberEmail(a.token);
+    const res = await fetch('https://script.googleapis.com/v1/scripts/' + CFG.deploymentId + ':run', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + a.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ function: 'api', parameters: [name, args || []] })
+    });
+    if (res.status === 401) { a.exp = 0; store.set(AUTH, a); window.__moonAuthWait = true; signIn(true); return new Promise(() => {}); }
+    const j = await res.json().catch(() => ({}));
+    if (j.error) {
+      const d = (j.error.details || [])[0] || {};
+      throw new Error(d.errorMessage || j.error.message || 'שגיאת שרת');
+    }
+    installHint();
+    return j.response ? j.response.result : null;
+  }
+
+  // 2. The part of google.script.* the app uses
+  window.google = window.google || {};
+  window.google.script = {
+    get run() {
+      let ok = () => {}, fail = () => {};
+      const chain = {
+        withSuccessHandler(f) { ok = f; return chain; },
+        withFailureHandler(f) { fail = f; return chain; },
+        api(name, args) { runApi(name, args).then(r => ok(r), e => fail(e)); }
+      };
+      return chain;
+    },
+    url: { getLocation(cb) { cb({ hash: location.hash.slice(1), parameter: {}, parameters: {} }); } },
+    history: {
+      replace(state, params, hash) { history.replaceState(null, '', '#' + String(hash || '').replace(/^\//, '')); },
+      push(state, params, hash) { history.pushState(null, '', '#' + String(hash || '').replace(/^\//, '')); }
+    }
+  };
+
+  // 3. Installable app: Android gets the browser's install prompt, iPhone gets instructions.
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; if ((store.get(AUTH) || {}).token) installHint(); });
+  const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function installHint() {
+    if (standalone() || store.get(INSTALL_SEEN) || document.getElementById('installBar')) return;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (!ios && !deferred) return;
+    const bar = document.createElement('div');
+    bar.id = 'installBar';
+    bar.className = 'card row';
+    bar.style.cssText = 'position:fixed;inset-inline:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:30;margin:0';
+    bar.innerHTML = '<span class="grow">📲 להתקין את MoonCRM כאפליקציה במסך הבית?</span>' +
+      '<button class="btn primary sm" id="installYes">התקנה</button><button class="btn ghost sm" id="installNo">לא עכשיו</button>';
+    document.body.appendChild(bar);
+    bar.querySelector('#installNo').onclick = () => { store.set(INSTALL_SEEN, true); bar.remove(); };
+    bar.querySelector('#installYes').onclick = async () => {
+      if (deferred) { deferred.prompt(); await deferred.userChoice; deferred = null; store.set(INSTALL_SEEN, true); bar.remove(); return; }
+      bar.querySelector('.grow').innerHTML = 'באייפון: ללחוץ על כפתור השיתוף <b>⎙</b> בתחתית Safari, ואז <b>"הוספה למסך הבית"</b>.';
+      bar.querySelector('#installYes').remove();
+      store.set(INSTALL_SEEN, true);
+    };
+  }
+
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+</script>
+
+  <script>
+/* MoonCRM brand images (generated from assets/mooncrm-logo-original.jpg). */
+window.BRAND = {
+  icon: 'data:image\/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAwFBMVEUnVl8kUVopVV1UZ2wuX2eQoaUUKFIdKTFslpoRjY5Jj5kVMjkdO0IbNTtQi5MYMzpIiJNYdYg7j5xEfIU6eIMcOkI7eINHeoIaPEQWIJZNcnpLcXny8vI9d4AA\/\/+JnXWDY2d8ineEnDJBd35+HB46gY0AAAAVV2Qja3cqdoMSSVUcY28SUF0lcX0POkQzh5QJKSsJNjgKFRcIRUcNMzwwSE0nR08jWWQLVVZKVlkoRkx2iYsLLTUBfn40VFkyaHE2n+7FAAAAQHRSTlOe114QFggKCRgB5aFcX17QmRj5n8mfpG\/WAadbA2UBAgUFAdACvwD+\/v79\/v7+\/P0DAgEC+xFP+gIOLwb9ARVyLqoC9gAAB5ZJREFUeNqtmomWosgShnNhU7H26q6a7um7zQSLoCyCIq2+\/1vdyASUJS2tGqLPkTp99P8yIjIjNwjcZvsYvmbkli9tt\/Lxk+9ye56z+Xw3JiBK8IPv5rPXN39Z2wyisQAiMplNqND2K6Mkz5KRPMB28vy1kQ4cZ+NSpo2WA2x9xkTbpbazcF2X\/tARG40CSBPg7E22vhJ3Q8p0iAxjHA+w+fO3uvFS3XMJh8gcqZumERiz9bJpfBiGHmUAxljjIIaSrbH5gZAPPWHfOBjJWAPNBI34ovknee\/bv0AbcSTboteL6NTy4RHei9FKhQnzNYa\/1XyPgWaOWItmtX4jv3oALYLxAKL3BM65+d6zblkwHqDRb+S9F55NYCxAJPVb4UF7hALGAqD+73VP\/084wFiASPQfP1icw4MDADIYCxDDTug77fZ7j\/FkNECSvfXy662+gwVjAWIQU4vTCdBLqcFYgBjsQQda3cFogH2UrfsdyHuxJjAWIK1GQEcfu6g2FiBNdut+AryQ\/6Mx1gEkMFuKEdBxgMAWRgLgDCkD1AWwOB0LIB3oZdjzLNiPBIjBHGYYy3QMIwHQgXU\/wwiAdCwAZAoHvO\/\/sM6dARHky2W\/C4mJoBwJkJREdqGu\/rSEyVghynxFhKb6WIAI10H+MELPertOGNHVdWMUG2pANQjcPuDb55aiSVXRlAB+LyPUA5AWIMFtjvHXxwSe5xkkCkAKu6oPSUAoVtL4KZaLJwCHndg6FYmh3nxEURoVxA+oFmVDQAzzqkyElbwQF3aEZiAnCacB9rFjdFbsPgF0IoIwLI8SYPcAYQ+APvqut1rhCsNmRb1NSJtnAgVjByCiCZ7WT4MEVKOgaXltmIP4PJsG4Wq1ejhQf0MKEzkY7nKLTzuDbUYxfpxsQmzDn\/3Rj4BIxy9IQNgDGKf1EnHwx6s74mNX+wE75FAOkOMGa6MBk8Fh6MAKVyHbYS\/iVIyCAeBZN08e4K9XT9MfVAYKv4+cl0eRGFS1iCOCY1EETAerBAI\/oVADWiN58kieplOLbWSg2MaV\/jB\/IRp9R1wRnDtOptM7PRokeY+9VAJ6hF6xsywdjtIPFBT6Tw+kAj0cKx5+R1ePZLPazpwB+Bf6Hj624in6hsVfUGhq0QYgn6u\/uRuu0D\/tIHZHoPDAXFcAgRCU+k\/v2K4Vk+K\/E9DvHh7udNcVuk+1J6sXYOT5TjReV3qwP3kgZN2ThThqugkzaocI6j5hqJgETJ\/rM5\/0QjXtANoWUr1fWriVbjU4fJ+iPegH4olnCZmRpNkH5foCwPU4FqGW4TlU3Uq9tGRCudXkFZf+DJILHuwueICTcitGKTCKhQB7rln\/byK7pLmXQ1HDgxg14JcYB0oPwhf9vX1+AcTF8wqxI3zXeSG6cFk8lhUop3+oUtwZyQoXtPYclaQ6EScukBrv7WkM250R1OeXchCVVO5rFNatvhNBoOxQzaDSZFDw1Gpzof1NNb0EcHncXrlMsOq57obkxam15SEnvtQ3PwDY1bmNwo7dhYX5jpl2N5sNJcS27fkroZQGG\/pdL034AJD7\/gWA+zjpLl0M4OgEMoLqnJBu3PAPSzc\/WraI+eoigPQX2NhFNUZxxC8W4hDS\/d+zpV9dePFBP10smg+tP4NMEKFzRqQdf2Byo+QKwMQsOx3CYiHE5QcRk27vQK9TosxJcn1ll5+yvJDibWOKNXbCDc0wjDhOJ+UNS0cDDiJGi7rpPdtoX90mZKccmCWpASoC5fEXNrPiYMXAHkLqSV3E6IK5xNpOPq+\/+\/37BEjhIDrqZcIw0VcMl07r9UzU72aPJvvRBXMc8skzXxOK+7Wfi9P7Zpe5U8TIcSqo4wQETP5J\/SWV5eO0TyaDGDkSID8dn\/wbPnFymt3jyRyTS8\/TTj8fuOC0bYMTwW27Zp6AgfpLyuUIJ6ci1s2C09UXTuRwy82NuBb4jfq1A+fTFpkFp1EfyGMefHKAxLx6o5TNpD6x0v55EWkAjtoCn+ZlPdNfvrCy76W+3xRJci6SGq0IjnOZQHPRSZQbTnk5MpfyqM+a+kJai4bcd64YzjLUFmdUSdw+6UljMfNDIeQrfcq3ieLUkWxuIPjLV5u3dq61Ffbr\/bqWFwFKVeem\/xFBuoGwfHu1813RVOrCsOez+zXasr7OY+cu3QFg2b6J4Ms7R\/o2k3Z\/v1xXoWnuCkmrP5PuEN9dTUODqCDrddPws7xPeOs6qX\/6nt9AcIKGUWP8jtHODDW4P2C3EDoI\/yP9wQ1IfBMhkOYrMHia0K1ZZFhL8uAm+drO0kp9xR1OdIUQDKwG4DMgheIooW8Gbia+CMCabt5wj4bLGBJ8NkIiRgyU50WKlwQA2JAQKD04A8hONV+o7zInqcKJQPy7KC+aH3\/iwhpTxejV2J8JBE\/T0k\/diO\/FjTtVEfx286tPjM6lGZt8OLsWuPs6JeAse\/ZAEoR8uv\/Kaw+IsBhp9Nsj+PT05abQSL\/64obwW2OEdiN1XgYw8RLKh9cYV189kb\/mAlK5UBPENlBuaJMrtyQ3vDzzq353RkcMO6IxxrTyZzVi9qO8nSPe\/hlcFxnb7a8bfvl\/G8hNIPBhLsEAAAAASUVORK5CYII=',
+  logo: 'data:image\/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAAFZCAMAAAB0VMB3AAABgFBMVEVnkpYzWF9jmqJkjZNUaHBokphidYaUo6UmNFIlYGhLYGZafII0VFyVsLNYam4NE5MoTVVKXmRYe4MdmZvGyck5kZ5Qe4MVHCi0xMauvcGIrbMcO0KtxMcib4SYvcIWNDzFsK4qPUO9wrvFyL2Wu8KCtLqOJSZqhXOhZ12WvMIlPUMdNjyjwMO9wL7AW1zJvsCJjCCWdJogNj5+ucA4eYE\/eYIOgH5SUx97D4B4CAgAAAAVV2UkancqdoMQSVYcY28SUF0mcX0NOkUvh5QKMjwGKjMoW2aOl5hQZmkoSFCVpahPV1gwSEtTdHYsUls0VlgRFhdFSEovNjiEiYp0hohNaW9LiJGlqKluh4xHcnpud3k4ZW1KaG5KaG4YJCc2WWittbdHaXE1ZmgjKSpQW2pMaW9VdHlNdHtpho1lhIpIaG9lamwOSEkzW2KwtrZOmKOOnKJTc3lHeoMRiImPp6wwU1tPk5xQdHoXNTdJcnrG09EjPES1xchUeoIxWmIyW2SVsEA+AAAAgHRSTlMWouScK10UIwUL52FjVloB052hARf81AgqGJKkVwJinA5tIRGY4gEKAtPSWaBBAQwBA\/\/\/nMoBAgEBAP7+\/v7+\/v7+\/v7++wkG+AoDBQf3BgEDAgMJUfkLL\/EG0q6QARML9AUBBW5OrU1yzwQCri39DXD2ASzQ\/JAD0Av7C5KO1TMbz\/wAAC+lSURBVHja7Z2HQ9tKtvDlbkwJkNyU2\/a+3X27r3y9f2PhFiLZkrsNNsY2mB5IoQYIIfzr78xoJI2KbcktiZe5u7k37vrpzGlz5gyHHoft4B4RPIJ5BPMIZrrBlArlcvmmbX2iPPOPCqYqh8vtov53UarVahIe8C\/xH1NiLnIgJxRH3e+fCb\/497lW8\/nz55FIZGMD\/ogct\/wiqvwDgalegIwoEye0sDD3755IJ5LJpFKrqVQsg0cslrq7u0ul7iILtZN\/FDBydlf5j8r1kueXxTwAsRureKTunte+nchwE6WCBUXMZZcymbsMvfzVVKobnPxSrfwPIDGFMPwRXJiLCBlVJrqRicFsSmUyzRAqTTeYknLjg0ueTD7GThaGhHHkO0sLa+gb6t5JgElnsU5JRxZBr9rNGTOUhNA59AfBWu\/K02yuSzcI1f1LESsUAwxlRBMJXtg8q2IfprD3DeVl7GCw97Y2B8ZntbuMECLKEPjN6zp+34xcnd6QoFLAf7Q8GaP5MQhJlBk8n7w9OAVRKSE0xbFSJQ2W2X8MrtsbnYsOJWoc8Xic54\/B1UVyerqDSIxlzZNPMTbZCiWOB4+ZwDgMoO9FWsYGBl+d2NKxaMKiQyFI9HF+D1hmitOddpDBPAdbVxnGW6GywsoJO1aecxLa4aY8HwPOh7+Vp1hSZmExQUkmk\/zK+ZFE5t5UgynuotC+EhvaTCEzlOQKDB+HTvaeTHcGr4R1S4ZIC2ObE7rhMVDBWNZ9R0TI0DSDCYaRuECcOWYOdZGVFTJer\/sklEuj6QYD933NkzFa54RVVrQphMUFlMsOQlMNBmZRnWB5o3FJJCyywkjLysrzgPS9YhkZmMYu+HOZuzerb94YsDDCkqRDxfLaW0VlhKYbDDbRkQwICyMurLBoTDQsKysgLsHqlIMJY1uEZ9EbI5Y4Q2XFONYDKLyH0FSDwdrlKqNgWdVNUdysag1cOJRDaLrBZLG4pFhjxMwiOygwzrjvV+uOCkwZLXhoxl\/HEu2JZWUWAkY03WDeIbSQ18KimCNxWX\/7\/WMZFgxMoyVDWGTA0oVLAKXRdIOZaSM\/Xg6xUS7JblhWDk+\/e\/UyLBhwXua07ILRRHfFsuKBVRE03WBkJDY1Y6RzifcSF+CyU0XTDSaL0pE73aUziks3Lv8L7TxFUw1m5h3yLyq+LsNFUborXYcHPb1BUw0GLm8fiwsRGGUa9dUumMvMjyIvA4IRy2Iz04VLL3nZeTrdxYkXsqRwWTVxSfbm8u7pdFdtFt+hJRIzvtHMUX9xeb2MniA01WBgVcyTUlMMTrmseEPcznSDubiRMZdVd1zWAxI33QXQYKc92gqjKQjozuX8LQqiqQYD1YW\/qDkGY3C00ktgZn+IuHEIMP+nLf9ijAJUc7Sy0pPLjyYvLsEUy36PPo1iUWdcXvtQsDLVYIpFVb8Yo6Pe4gKK97fgVO8+gbvOzCOn02jlnEOnaJrBiHLQQ9aN3HGBhF0OTTMY2S81796obp22PtIHC6w3Sjl5qsHsIhofsVyS\/blUfzxL7QpMCbXutHBa47LSb3zy\/aibCzmnXPw6l5hTLlD+ss1N9Z7IMpL\/Tcm\/4IlE3d1kf4HxfkHiNINpo78v6lzUsLE\/Fwgdq2iKwfzWFiOpQbj4UKE8zWB2UMtgkBz5L0Rg5Oo077suID8EAiZD7QRM4Ae11A7ByGV\/JmXJvzgRmB+6DUD\/314CBZMyB44OuHziOHmawZTQUizlNqAmmjd0Ik4xmFxjPzMIlxXvPAqh6QVz0qgLioIx5ncdCMx2EE0xmF3kUSaSSy4r6z+0uPQFA6Ejq3idc3kdQE+nGIyMgpnVQbhAuWq2Or1gKuk6DgXUieSGS4BLT\/FUktF+ho2oHXNZ8XLZmekFI5\/g2iAMRhOYpDMuED2mp7hHlYgiSuhIUlNO\/Rey30bammIwMlozh9TO5AUSvT\/mwoAzMGIZZVSBcZFqICtJARScXjAnUmvVfW6KhtUVNLVgGigUGVBg1uvbJ1MLplKukWUkbVHAhcB4LyvlqQXTbvjzStWU64kE0UAVTS8YdJxKmbg41TCB0PSCKbXXDMEj71xgVnyvRG56wZDCTCMXpwLj+yGrPpyBKaG1jJ6dirsCc355Kk4rmOJNUBOYqFsw60hC0wpmt41NkllgHILxfRHBCZpOMC\/QFWnooQePzrmsS8\/EaZWYv53470ya1\/FEWvG+fFmbVjAyiqQG1LxQuvp5e1rB5NCCapKirgVmPfC5Nq3N1NPSUsocPDoHM78tTikYGR3lmajajeIlReDboekEU9w93b+jYFwGScTt\/fJhSqfSEyRGjALDO+eysv7ztKgYC5gX0FFJWxlwk21QwLySxCkFs6ssDSjRgMuJBMsDSDyZTjAleeFu1ah6XXBZ8SJxSs8+kRG21arqdalhwCh9mVIwlWx9kZYhJtzOpCSu\/fivtekEI6OzjG6T3AkMBiNtT6nE7IqQiHmzOuBMWvm0XWtMJZgytPljEjGuwXi\/1Kbz4CkZ+TPGhIMrY73i+yxN6Ylc4nHKJDBJp\/oF\/v86AGCK0wlGSA2wNqC8KAn1ZRAQNKYQTAlsUspxhipp5IIDgktIa06jxODUXcq0+uhGx3wKPZtOHVOWFlPqoskAXCDf+xdxGsGkpdm8WfV2QWPPy\/t5ezrBINKU15C6cyUyvs\/T498xYCozpx7LTEo6MkjaWtspmkIwMvRZ1bYPO1xlS5oKYyr\/fQrBlKBzpimn2ZcMPK+\/BoOZQomplsWlVTUTE3W3LqvMqNcBx9kYpRatPPYzg7KkUWO5OAyYC1SNmFJUpC18cmUl2Wc6UYDrjsHIesPOcQ5ZPfj3hX8IMEWUpakYw3KSSWgYIUrqD1Ew8w5jSGiP7J9bWpqDA7huxmjGoDjdP0O+Z5DTVRhz7Tcle5NWh0U7XSCpYmMOHPg0\/1l01khv4Qr3R44JD\/tjbO4ro\/pSHp81GMu0gu73NjBgrsxgzMo3yQ6Fmfrf+I9P844qQMqwp0U9MUbwiOMq8cyhA3KaETmO87iaTQ8MpphZNauYXlwsD2GJkRz1FaFcEvj4w+tgdixCI1dJk3fa313YcN2fkNExxvUka2CdXDGCSSoqxx2YUqF+FVO+RfmOgDSm3dkRDT\/eHuK6IRSnu3erlpXZ7iKzYoSigPndgY4pof08WYOgWdPXn07BIKLRH6+3QLgk1LWx88u0PBCYEsIdqNiV2eQKO5mSdhPJPJX+0rfSodz2C+Q7CJbXMOCwjzFsKw2jRZVLUq3D4AYCU0ZkfcAYKCV1y6QaH4PEJM06JtS\/dfRaBn8H\/rmvleFVwJSyNzflUmk4d+5FsZ0tKd+zyHLBX7NdSw8CJotsIkjVw6MYbGi4BQNZZRyLxVV5wSJDwBSZw2uHHNDHEJVFDIZyIV\/zMeAu60rBVMLiYso+F0MsM2OWDSbbtVUq5DEYXudCwMCl+Jc8Hk\/Tj4Y4+3vJ86c\/\/ckDHyGKSLzCYHh+Rfsmb6hUcQ+mAXVURjBapJR0OJyAqSA\/FZjX2iBT6cSTwYY1k4nIrJdaLZRvbrKyzRmdNy9esBPvSRutLdID9d6nnzaycJ9jCUZg4Hs4NAAYvJM4Za5gtfNWeoBZ7+\/5nqBmDN9Ihssn78vfpNCV6nLkH7b0I2PUC39RMHzK\/9uzxFr+06W8dtCgJ53dQwoYVjIHUr5hNBdTPteqe+0gWB6FN0DFpti3eZEi4QyYjz9\/QehB\/W7wbm6rBVlVN\/WW5xePZx8Zjh16AY8v\/QKTpiWqOimIoDeHdrSrcCilRwfmn4y6l9UxdgrFhpeDtEOWGAvjTAp92G6qPgd2xVYCp23ltZUlfNg8zK+rFmozETkcF0ec\/XymWYVfjnC5k+I10lMpk3AoZyumgHk9tMTYFMkn7SeS6vQaBQauCGu9vmDg9zJgfvL++sc8ngUxzeVYV3fAKCEgCXY84q7mocxlYqp05PkjXKoEr42pN5U0uDmXUDqvGD8GjOQeTBBKEq27KmzsECstFhvl25b6SswV1r36z\/3p419fvjqOKVxUCxIAlYd3BjHHKvKHYpt+wpwagsITgtCZh90uMm7mklLuqfJT3iLpNmEE8\/Fy2z2YMKp3bFZOks70i\/q4D0m1fqmAZoYF8xMIzOcAr1lW1U7lTrCVNMzsQ5I5yM0cZFKG5iTPpSxsEQcwjJuLiwG3j3iDuwRztubGLHFq\/YdgXrQ2+yvwGN\/TKkEVyPZ2v1SMP28A4\/358zNfhsROjGFFXK76PqaGOjT8wGGg9FRqMiEQvR05FLoiXkA8yXQRPr1lhBB\/6ktxIDAZXffai4zhHEx2KmlOsvdl\/4TM6TEDBgvMH6GNmDFGIB0QDgR6\/eTSlA4jM1IOBfMpo2zgkxXRvBDTXqx0Pw2EC2uCHhDAh8672y+kgpnJ2Bgls3rt5+GFntX6ptVAwlVbAVzm\/9hOC2b7AS7faTNmxvWJiAzVRzQyfI0ZeC\/RfCcW07iQV\/tAG63xVNywhvG+DA0QEtygcKoPmP6QoNqhr+v7ZKt6z1M35uNH7++grg8yCgHG5fvypcqbuQAvqYyqQozqaebxS3SpgdE+hAOnaU31fD999L5yWcvP0W3WL7Q9kKbzY83mxxaKktaC+pj+UWQb1ZfXP30EKt6fv3wQicMRM1zpR+\/nz75MzHz9rz\/WEdSpxBR9xDz+KSDVHmIm4wwBwE4BHXkX1+HLvL5\/ffVBHCxRNWc0SgwZvre48Jr+wRVVzr790ufz\/fyfXn0I4XKaY3Pw9PFfnz3bsF4\/FgIUiVmBgSiBVTKG7K8\/cjBtsfMH3\/Tz\/DP8VQOCMYWQPJEC3lmYpIacXkdbLC7IsTl\/\/oP+1qYZwcffX4YEMy38uG8bu0EGA0YNMVrKJ8zG+QvEptUc\/q7\/UguJAy+ftFIWiemrajRuGhiHVZuVRq5aUWfdWj5hCJ5eez988eVJRGUC88+fvzzYCMzrT5fIJ5jBvJSe0taP+lcNAIZUJXYDw\/DhGautP636FJ9ebbvQ\/KLiVQR5gVW9P330fQA30BRqUjDPOmZdQpz9y+1LIWrwWrzGFMhuY1AwUqQrGBUE\/Ys9F+L8Qcm8+70EYMA3WAQ\/eS9PIZtojKiotfr8qmPKcilP\/CyhDYEFA8b5gziSRf1aJGYHhhUXTcuyPLQXklz8+bx7MI2yWH++zmqSL0E4qsiqYgAM+kDBWJ6AAEDQ0nWfPv7zyw+no6l2YCUmzl6vpkh4+gd5kDdhochgW85AhSCSz7v+8Sd6r38F\/\/YXGxXz06dPkLA0+YIqmMa2j3hzxD3ygRUSR1QGIm1YwGhzh50wetDEYqFkkgPuV8JJqIDP58XD9+s2ZBh+idmB8SK0aKN7ASZqZKVZ4rGAd\/TXPz6ExFHVx0gdezDa1OFVtUtRWE0X\/o\/n24P1jkmDVd2enw\/Mz\/8F7nUWwFiv\/ye4fjDXRgdXBYMXwC\/n53\/\/\/VcIvi7F0RUOWcGYZIJXDRJPGVl1DPy5\/vOga\/Q55X3\/gu81ZBESVhXz00cuhI7zdsQuwUsQYQn2y\/YflZpYGWVFlQomyuqYpFkNUy5dR\/Lc9y8DF7yIXCOd4+gybsIQPVFzBdmeBcEGjPcVybScBLlggzhS\/38cEhOPx22vmc4mszUy\/D25cj2S1oBtpGpSVi7+J7TTqHYE8zOQ03l2OrYaPHYq2QtDL0nRx\/p8YwRkGrv1DZMXBymK359tI2x8jM989AY+f6jtjg3MRh8wFn3SBczRiNpsSrP\/e52hApo38OzD9jZ3uZ40BJxghUZgm4cDk+wmNcwTcPKhq0a+xZmu58VBXAyX\/fEjyVB4IQGHEyoVFPKtw\/j06RN5OPDXl6OwzYOASZq8uN4ilPRJN66PtrUdOzfYAAeUMf\/7r8+URBNA4NQH4dEvtcuQyw926\/nG+kuMIyVTdVMHVJ1Jo3fdshNpPClffSFju1ajgfsJmarS9vaH0OXpadeFrCKsy\/kb4khDAn6IkVwJOq8DegotfDILiLvobsFzwRkygkw+Iy0XZnbLO\/DPk14rWPv5TnWIYi017XBrWtIfTF5gvi2HHfu+F7CYksm\/RTdoDBVV+\/nMhpQdvmS+2QdM0imYpIsDv9vw82P5M1QYcUlrNQuymBICXyrDg5nrB4Z3CubIebGxnD7tZGLCNfKP9PR0eRev4+aXn82HRgLGpGOSAyoZnwtPJl32C7EE30LhJ6MsCccrtpmNl\/PDdD\/Slk8sEjMomOeSC2MwA2vDML6CVhjRVpR0FtXxgm1nfv7ZNhoWDFlwS\/X2Y5xOpXVXrdTD6IDnBeFhFo3mKAPo67Mm4OKh+sv5oTryMUu0KWsGb7C55OYAoaKMfMBe4PdPkTySnRX7uJpPOHo2ZOM5fVE\/5QBM0onMwCq7CzJyWvISMrfwpuJQ8wlX6h0IuCxU8EFgVUMjAQMe3kgkhtSKhV1tKxK9CvBDyOUMXgItwzsbS6T4U\/B9\/rCNRhESFFCokzJ0lB9mnLvrAb2Htr0r5I2dswoadELB24ItpdiIBy5Dt+PjaMGbuMSAGZbMW3d1+7ngK4WMwB\/vY8XwzmVOJ4glNNSi+5NGwkW9ghtwZFKjkpjkc5cbGoI7EiUj8JvXGE3W+ZmkxRLGEmxmaG3eaLioV5Btz2mltkOD4ZPcTtrl9sVt7zkhA\/WGQhM2S6Jd2dGckrNQ9iv6lxQsmAvYo6EVDANGKYYcFZh7tOX2Z0h4xYyPw\/cn8jCjDvCM6rP\/uFgq4ZzFwUIkH6NY8p3As\/mRtPvUS+bzIwJD6mw55LKDYnsXcRvk3RhNQsh7lg7U6y+Xd05O5ApJIVxU5JOTnbK2lXphyYPLgWOKsyGsX0IgEBphBi+nl49GhxQY\/PaVAFdwvxuYW1\/R0MDNzyxeteQTPRW1C\/ttilrWWxQb2f3IYkYrkgYrzfs+zM+PqAO1YVvOaBwZksiT3K+8paHSKrmCyVA0sBslL3Sac3MLB0chtbupKIWOFhbm5pqdCPZZNCqwEnUO0+jl9jYaaQuDMJReaK7v8JMp6UPu42WYK0eHeEmPokkklGvOZIRO5\/i9BzZW\/OJ5f9zpCKycKFQAi+8DjqdrI+7tkFWqzimYYacSruZPD7RZGgXWcU5MQRNV0dBBYaTUoVGBdUu8jPDrCBu5M5tFM6nRTSUsMoO4sDttVF1OrihyR+Um1mMklIPJocPyNrbSNTQGMP7MqDw8InKL9cIgZLDpqd8b0NCRsEKhx7VDR+5Xz\/78YbR9\/5kN6SMCE1fArNwP2usDSkICZ+dKkjmujGi3gb\/oUwCXq9ZqY2uswyQe4m4dFxuROa8HB1zGLoGpD96fqwn4uDZMUPC2r3Nv4OXnP4+hgztn3PM\/AjBxupmKvx+81UfpBf5py5v64mfcMBQNv7Lu9c1\/efbyQ6021q5m\/pjxGHQ3GsUwj\/APx4\/NosGP5lKOx5s985zTlgDmpM\/5ui8w\/\/LZq\/\/8YTxnijA6Rs7rSsY5GcNrDXeVv0WFYX5aaQtvaqsHDgLeT+vr2r462LMAkhLAVD6EQqFabcw9qhpI7OjRkiMy5EXdwPBkMg13mlsxLZPZKIUkjuOOcO3iUYDjpBCsZn\/AVMQJNO8qlsVWzKXva6CgzSP9wUVx+GoZeSv8AtW29e2Wygq\/VBvzCQgck0peyPQHQ5+I24EhD6vakTzolRqj+PlKKF2pVqtctTKhMwUNDQKFlDW7aZgn6t+U51krQRWuUWJ4WK8dwwEOIhmVibWULEMndbqp21ZiNNGI2w\/r4zy\/wSE\/Qj94E1IZfTWES\/Fudtkei+3jsPs3999+\/O6s13nGxSMzw8ol7mrwfADt\/ehgKko3GtaTUdmoVxl3O+C9Rw35R+8AvQdbDhlPxmKY3XOB9wgbP85BMcWSfGHbGpu07lO6lZh8vB5qxELM+CoB6oIKPwaXklIYaHsojMCES3GrB9PfEFleBdk1n5j7EbjI6KQZOVALEiwHNjBg4hZb7UytmMBEN0J\/+wGOozopVyN3q5mFmmgF839JbxKji9fTdXEwcIfEYzSOXnejHZW0dHz3ZvUusm0jMWHk7+guXpyZQUOoX6xmPOi7P9M4DRER7qkZqdmAKe6KS2reXZsW1ujQvdBA16g98TtXMH7M5U1mTdq1P3hKYDyZeG9j5BxMFCpDvmsF3CjXcf\/rN2+EIN0lYgJTIBWPusg4MUMOyMQFvj7mPthDKpjTY9yc9s2qh9u5sDvcbg\/3SuoBxjkKk8gIQvo7JgObDclEepPZV4tHTWDCewuZmK5+B5QWy5sxmYc02vlOuZTRwh3hkrqS0pVuB2h2us0l3oVOsYpMVNjMfacucEnlspo51DqVmsG0T8+6iszAAqOSCX6XMiMrhhp3M87XtYQpZ1kiFTuxIbWMIi9RVt2QFTKBz32HeoYcbaJwiTX132c5pDcsXRORGQZM1CI1dPn5wY\/C3xmXE7QQoVxSQlq66HoQeAkdsd6va48lri2gsuaJgkk8fG8yI6NZhQsWmJYY7nl0PG5rM8hcMi8tK6DYZ6C4LjeODW0j4ZIS\/IwO5GyKdxYGnEtRDYEqKdQ+6aUciUTeP9ghLeMMkDAXEJj3p4WLHmDg1ZHB7BIrLQrWKDO3KBm81a\/rztkJD+ghSLlggcnMsjuDbMCUTtYG8X4tpSu2ZS24HLOJvguzXSpq8kIE5sqwY8p+WS8ywFwyc+lS6kPIVEaza2u4+Ah2Tt69YQRmrV3qA6b8N7JJzKHIROP9yp6ipskUE97X3XU6GIu7e7r0PxguIDC9TkhXu6O9pyIT7evhmg1PL2nR9YywgNrfcjpVSih0zMoLNknlvmBwW2q1AXdfz58aZocCQ21TTIBO6N9uvUnEO9fudP0CAvNe3C32BQPqmmwVM7hqPQOAqKtByDTr3yymhItey6wauOQPynL\/qYT8uwuayET7ahfXYOh0WkMj36PvaFmtjcSmQVxSOEqSHegYnH3QElbRHu6\/C6Vro4MzTRGV05N36lDQOI3wdh6\/XHEE5slJVYj1JEMDxWi8v7btZrZjmY5fmrThhl2OrcwbwzQCLstGzdsdDOQ4z\/KqZYp281niqos7kMwoh06cWn7SeOcRml2ycIlt1KSiQzByVjHZiV5geni4Tsnkr5YQmpR9wrdgQdO6OhdhtiYjh2BAws\/yDsEMOJno7oDMFT7HcQKHtVZkA5Y3q9rhd54T6wl7XI\/t0F30b5SNo4caCWWTTWbJj8avak7KKLjEclHlBQTG5tt7lUCKAgMmGjWZo1GAUWQmlcmTg29KYw0YsdK9Y7DoXM7s7grXy65pUbZBaqIjkhdmq00qH1nAh7uMaUKVYBKJS1cZExa6EYw\/bSBXYCpp1NQMU9RlrOhOZojpxmjGooXhQ0NrEV1aNK9OOYnHb5se4nr2qPELrP87qGF2iCZ\/vB\/CW2UbI12UxkfdifuRTBcsELTZJ4e43n1H1jLaXKJ5yjGSAdvdrFDJH5GsYLVVaS52xRKLPeR2ZddggMyxTmZQq+wkpKSqBjbMNv0V3L+gMgrzXMbdDZqMytVjAO1e+LtkE3uDebLbeIgZyIxn6GiATWRhAVvX0rAKF1yT4EKEMdBWLLFEs9tyDtcvsjjiJ0MmoZJJrWYy5Nw6vCNmIDolugyx78mYsJi4JBKerrvw+oCp5MRmZuJkVlOZxcgC2bjSLrmbVRW5hC9V\/PtC5N\/uUm+sWFh5ifHcSXowMDi+eD8RMvp8SlE2+eMFf51oOll2ZKkqJzJJfdX9C8d5g6xoOtc4j4Sz0zQaFEyFcYAnJDUKGRiZfMSzsCAqnfqU4PgC9uMwgXCxAht0Loo0h4RFZWHBEzGoWyIrNliAS6vHSjrnwD3So8kJzqcUbsxHBGfRs7RUd9Krt7K05FnM3BlFRZeVlGk\/e7Qj7aEhwBSzyprtZMgwfRzowEs+mcxdJrO0MJNNN0SpVtMLQEXYBFht7GX9SxH8GisUHUvKvNGfr5flYcDg8t9WfjJgjJ0cNDTqSN1lIp1OZKm1NPdPMObmlpqRSCeSz9zhF70xD42KbVeI\/FrPZLwTMJWy1JncZErErGwIFl0GVo3jjd2w1yus4u29Tuxo56WI6rweTY6djB2bbtffDUoXxaIN4VaS0dBgIANxIExoMpnDBEYZ9xEQfcb1gYIFpiNln44ADCkkmSiZbpPKrHZscDjgEoOatxk0CjA40M4rbWwmCMbcVCfldMT6jPxM36ICznlXlzNhkmQwlmiiW78h9yzYkXFQI+kYjLgjLQuJyZFRvinRuxPTYCN\/4KB21Hk\/AC5bez5JMppjM2o2sBPGj0YIBipipY2JzqZuqmZIebmXCpWRggF3ZvJkEokRo4FNvWEJjRYMyIx4O0HblFAVsA4HT6whQCUwl7KIRg0GtmZwt8JEwUQNYBKG0aM7nv2zUH99jdIiGj0YRc8kJjuNWDYJB2i6P4sDpLKIxgEGVrTBNk2YS3cwiZ5gEpaA+gw57qfAuS9Iqi2PZzaxH8pcu3Mw9K\/anLPYI4gDKmhcYGCLv3SWHweZhPbvhJMRs167CYzx6UR+y02p\/gANn9Jlckb1WK2zcUS7\/LdqqbrOJvYh2JN5g8YKBlUgohT0OzwaOenBpafcdDFB5kfzmy53SnED9gn1Q0P40c8nd0zU+WRHxvSwcFt1uYOMG3RDS\/1YiA3v6yWGAJNQ9ElPMOrjLdHtzrpBm8ptIcmTj40+puyiZLtZpEQ3d87ATphzX3kzcLc9SAzuj2glLsH+217H9pOcbv4MEWp+bYCNmIO3IaxCXSc\/5LKKisLygFMlE+sRGdBXCZ6B2kpwQ5XNiu\/zw4DRBaPHfIrFemkYe3PNNBTn99FAmzmGalwJq8WtYSKnhIamh56J2Vlog6vbQ2R4zyySq2jSYFDjHfJvCoNHAGr+0pVhUlVu3xwDTCOwRqXh++ANMl6g6rEwuPmhcqOrYEeqRfX7+4ARNo9Q+QR9GzD4WBw4t2\/o4FGj5MLd7SM0\/CFk6qroW4HBmYh6SxhNss4BmJgqNH2y5AnhQBxmF\/MougbvYKERogN4ewRGn8yCrbT0tEZkeIJodxd9WzBILkKhvqAqC1fKV83ROTPRjJXuPZGuYFthNoi+NRhS4nTk4RMunTvNy406CwI0Zr24EJ8Ol+Ii9B2AwYWvUgDPJ7dBkU1eypiftA2Qevm7POzP3eVG2bZ2uAF97qrXQj9\/L2EWGBv9wuRTEg7XBXRfN\/8AywAj2Jw7wpbtVUgc1pu84MLttVkDMCSa7J\/q6uCBtGzuo9G01OBGvQHmqMUPlZNiA8CYKSvFJL3tV0d4OH+zPPoO0KP4uC10CkGC4IRLtFcGwU1+QcNyVh3djqeRn36AW2oCGt4uQWdILUQTrsFYFooSrP+PjyQNl9D3CkbZ2njg4YVE1DYrrAVItouMDsCYJhVROrznbMS7KsdzXgYkQA5aNulyRU4MQYAJDrNGZOPRmOREeSgKBvpAGvW2wTEdJJKGJZz0\/mZeYFSKWTzY+NGSyO0JJqEnooDsVasBWHIV9COAoVmz2eYmr4NJWMGwFTCMY2vHxCIwJD8nvN8nN6IyznMJ0Di2r56pnk3CysUmXUeXRLpoGer1JhQq+HjsWWiRViqO+cCGMcwo2A506l\/rwFnNZtffGjKxsbMuMNrTuuYhAbkgdM7w8c\/hwvhPshjL55OdL+K154EXbMHQnRV65KyHBEpyTzXsulqJ4RnUrOKCjsLeJI74GM+4yBJJD7W+8ryQsE3exRhJMdlrtkxcYSXw\/NcW2b\/ULlUnc\/bJOLUNFnjuYO52Q7ALmIjSoPMmZlC9JidI4G\/n1oJEVH6b3KEwYx3BLF71EqtbB8dXV4Ip1DQkulUbZEby8LDZSufIDtKsPNHTcsY9Cjtq4c5B6\/37zaQlENenjhEJv+nxNGdpkVh4qzDpY4QmMoqNUpns\/BSPzubmvt6eb6h8jKoZJ+Lg3NYNz9zc\/qxyGPy7Uqn4Tc5XmtzYyxbo7g8xVPfPzMzMzbXAFxSUwW82W\/tz8Kg\/yKliEs7KxW928NRkB7dTyJb75\/F3b8LZLe7bnsj1LUZDlkvv3tkVDcKjJYc70acRDPoRznB7HI9gHsE8gnkE8wjmEcwjmEcwj2AewTyCeRyPYB7BjBSM7N\/bSsvdt56k9\/YKwUn+0speNnxzA2mrtHHRZA9+yZ4sy3tkpHOWJRU5jUf3rsUwbLKDfSSm\/Z3cv+IFe2UzF73SnLu2qeHKaCRmBrWah4fLB\/Y9zivo9Prw8PC6iipoQkdEwVLvfdODx\/vDOtI69jdQY+l+eXn57dvZ5eV7+Gf5bR0htqF\/Ax3AhSzP2leJVJ9KvuXlw8O0dnBmHzBFJODDrjfqnN3nbUn3SfzshI4kxodynG3ydMcCrEltHgYlpZziBdrrGE+454Wrh1ZVPyAjjJrk4beS3cQPo1ny7AFyemADEsgh6dd2vZxm0NE5NMnmJ3RWs4zEM964j4PfuK+TrkFP0JZNvZ+wsawdxZNFHvwK4fm2jcxczHA8Yb3mXMfklV8QQBeWT5MbTfxx8cmAyaKDY2shKM+f4ZtsBKOvXvKbAVoankXvlUeWa1zFqkKVPUXuwUSPJcv29hsQv+jEwMAhWPb1sVAXH8ZgulTP8vfKbFLBROHE7bKlG8O1gnUAMPyhWQKr4SD9LZMAI6M5VSRAeyzCPwKZVXihcg6FVTAGJaOBaOhgoKDmVsqZr13apJDdg8GfnzYf\/SHYgSnOFPD6ECwH2e1ZffIbfTZrXEPCb3qHe3SQt4fxu4sGLge0WQK\/2TojD9XvPbxypQvZJxqYI+nyMnQZCoXetjzKfeNvOeyHaRIT5WeRoZqmnQvd84ODAdBBdm4Gy7Oq8LJgSu8s59Kw39I22QLzENumEjX6H+XLDv0ZZ2CG2+VyGahLsyAVAu+Hi9bAbDFvDyhykAzgW6qDATKGOqNsud6JDg4Gg2bKC8SsdBu1ggFTGIT6jkU8HpqwzcFQiYzt7cEmefZqswWVHFmK2o\/2Nx+gvOMtqfG8Ut4dPNXI5CR6T8mxZml1vzeqbvDApYA0MMIOFIjgcZJO76I6EWlhWQLtyoIxtk6Xkbab0w2YjKbGOhIzl2RJE5go71PByOh0lkzuhOJpHB+wrX1kVL8mMz+hlBQeBtWGSHCWPf403kuEQKkDEfjlKt0msYe4c\/WHZwtMh3fELfsJPQ3Mlu6kV7PomLxrowo3jAET5Q\/EErMvb1YzaIOBAWeG1b8bUQuYNqrfGo0D35I0DwjsbYc3FryoLZEKKphl9gWgHcjRbu0dehfg9QVz\/wTFjVDNtcA+\/6LtV4xwGp5nwURvdZEB0e8IainOYGDi\/JHmMMuI2RfKLytgdrD7aLaWt5f0FPasjb0VbsUyAyZqejuQycF1\/0YFhu+cmmvhqznlXtmCeYIKAhUjZAQD7dPVe3yy7VO+eiAwPGnUxXuCVCnkoOMxeTzJgNmhD8ap0Yyrdp6YsxJpwqObVM0LaDBg1OcFXRbb+AL9PNVl3cpFuoDZIVvtWDDxFeWjOCrkOQp943wwMPUkr+hfAlrMSYfEhT6Yoz+\/gS1HUNmsL6w0731v769pMbhwLYGmKO7W1RDHc+3zXbcoGsV2bulgwBy3Wp6v9FleMVMK02ROetJ1P7zdVHpKp9IOFh4FDD9L1DjsxSbnQCA\/d03+HiCT1TWYZCCggK7uXJBI9ShJrhF5NB0DikCxHPzmkdKqUaQisiERg6R4PfzhEf3CQ+XVG3U5zYDhz5SJN7up6jV8qYrZOD9Fp\/0kZkvfHFoMo+eK1QiCIlLBXHPU4SGi2oajS4hye+UbEAwiapG\/xdOiUpWI5uX9O181MBdgO8nP2ARbQ1NChEwcZtqJJClkhaaEslvwZAFJTcXLwCmNtAoGBKgsF\/wzWeUHY8uK3UTlvV7JGrCZwPAamCrs71A+I3orgZbWwCDll3ROOfiwLY4w5wODgpmt+jep\/5sDr43IHXwH0sG0oQEy+UtQPbpPhoCWvG5TOmmge3Vup7Xd65sKNglpYPgWmpHp3gyydZD3nIZx7kP5mm1U7AdmZmsmCyO8Vdal7gC7VyoYD1e9JWH2PQR7aXq\/r9G2azB5eiMRmYvCsZTmFCUb38zdMGCKym2NHoqatyu3lWgq+RalFaUEwqP5QuGbA\/LsRhCJKhihXqbZklz2Lfm+55dozw0Y7ePFWbopUziu+2UGDAQTSTqZcmVyuwW+XhoUzAHaqSsiE+CC0qGg4NiiOuYtAXOlvpLJFLyPK3IAmRvyI2fTf9eyFiidVKVfBbOpudANdEl+6UYInbTpVFqXuvau0Bw8cKCvYCw+PKiGT6gTi5HVwJCblMCzOqs4HRCADwgmDuF4jjqI5xwi95I\/FtNbVGKUkEDZODT7VDcM2Rsyl4SvUOpMIAiGrsCiAmsGtffQnAJGLmi\/55KoLACz16aK+7yKnvYBY5OVODOkHTAYFOKx8w3TQPEbO5DUG1xiQJl6FLwhRWCOEGhQK5gA4x4XFCUTBfFVnDuBcUREFPKSye5H7YIKBtmA4W6oueb92QunYGhxOb95oEsvBSPnsDpM4BzTLU3CNVBtQDBwPohcriu26Dn5iGu4RhMYilCXmMKMSWJ4SU+bQx\/pdYFKjA4mqz1Lwcwj7ilKK1gPu3aZskoMqSvn7zm1f2SWTnsPfIakxDP8Ivl1zWrh6TBgUIGb1Z1nvt7IQi\/Pr4yOUV45x\/z436hZ0nQMaKiGHudUz9W4b8ceDNzVjQDiJGg4HTXaNN1XyRrBMFkqALOhJ8MpGAGDaXBHjKMNB622hwIjw5kw6ml\/EM6Bw2oEs0kdKE35ik8vN+nzstUqPQkqNosHH2iri8QkMBgcG9Nb8lwKc8Z0PD1jSVO+sIACY\/ntMo83f4EdPjFOJZDeAhIboUPN027BTyoiaQgw8L9ZGgAJmxw+xJEF06aKAJRzUNuTHkgqfsxMQ7H20c26tpOmjZQfB+5Xe4smLm0lJof2fqsr8QVYbGYBcqaNCl8L5C0aGDX3JSmtu0GBpQ1gohgMOAP1TTUyFsvVocBkiV\/\/nFdTU\/j6WDAXKKdM3CbkTyDXV80VELXwXpBd6Uj14Mr4yqp7YdUhPIM3z\/QGA1\/sSypfDN4v2krnTk72CsCg\/iAoXWg1MDO5dA6PcuOBZBI2xFxQB5OgYODX0wQHaN4yGhrMBUcDDXr2TpjxY8A9oM4tHHaOyln4ujpJdECeSCrDpW3SVBBcGdnLNavGSpBzySpgBCMYQVG+WLGnRZpg5o\/rWrxUx18oCDsQQmpgCjRRlVO5q0c162DIV8gc+T3xW44jlk4aLCSgYNozeEbEoxuc4lAYwJTCVDyhjcAR3oa0r2QPhEPgAreI5sn4w7chxi+FO7aDVDCMxHBGMDiQ1DIV+7OBy0vY5US3Dwr+dsGadpihMxW7FQwYgYK5wLmjeHQlQD9+ADAJHQziwqfQ4oO\/ruwhCxjQxqqu5\/n37z3qSuqtktRWZwvkcDZhW5uadfCGOGQHJqj7MUHliENJy8zyfGdjQ0vp4OXDsBVM9mlIMYQbUrhiBQMT6BA+4pCjW9glnzAMGLAQa8edw3+hbQiNYFBOnLWskwo8JxLDAL7KV0vrC\/5cIrIXtoDZA\/XJKyFBUHWU3+ftFtQgai3RfEyCzcdwobeKyNxzO7tWMKVK47p52FDdUQpmf1AwxijOBAZZewQKHs31qM6gryZuAqijnCLnirl+YHRMDYPhAUxOa+j5VW9IozJOQkvnNv4l1kTVFp1MybdSyQrGVBVScy0xeSqtWdsaARwlCBBO0ot\/h+qHzNZPHrdEfcqUTpw1k7wuS8dr6vdSMAblS8HM62tWRdx1RQcPtQb8RkBx4ZgMXlFv9h7YwB\/Bn4vwYJgu6hvBaC8mEiM4l5gwesB+5PmB7Yk7WfSVV8pAZG3lSPRfd8imRvyuIHrxm+H1p0HfhvLs+XNoPLBbVZ\/YJ1Ucx1qrUDjI9Jh8doiJveCS\/Pvn2pbJ8+UgR5cZZqAMBD\/USTNlGU+xAMNHdJrkvVAGAj+qZd\/UV1zGz3YOnEtMugFeQbVbC8897DacVIyLh2I6HQz6t\/DW6HdFc4WLxKVzwWBwDxx9tmFqLgdpvZzha+CT4X+WyiExnTu4vr+fDaZFiWn\/QUrF0sYmKTnUIF6NTD8Pv6BbrwPybKMyvuLEKrMqG7bcnArDYmaAvkBFw4p234+Qv7eqzWKlUuz1rHgxXJOnnfQON8Z+Do\/lrI9gHsE8gpnU+A+dBBN5x88tSAAAAABJRU5ErkJggg=='
+};
+</script>
+
+  <script>
+/* ================= core ================= */
+const S = { data: null, tab: 'today', patientId: null, view: { builtin: 'upcoming' }, showFilters: false, tableFilter: 'open', tableQ: '', schedMode: 'next' };
+let IDX = {};
+
+function call(name, ...args) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(r => r && r.ok ? resolve(r.data) : reject(new Error((r && r.error) || 'שגיאה')))
+      .withFailureHandler(e => reject(new Error(e && e.message || String(e))))
+      .api(name, args);
+  });
+}
+
+let busyN = 0;
+function busy(on) { busyN += on ? 1 : -1; document.getElementById('busy').classList.toggle('on', busyN > 0); }
+
+async function load(name, ...args) {
+  busy(true);
+  try { const snap = await call(name, ...args); setData(snap); return snap.result; }
+  catch (e) { toast(e.message, true); throw e; }
+  finally { busy(false); }
+}
+/** Mutations: returns the server result, rerenders with the fresh snapshot. */
+const mutate = (name, ...args) => load(name, ...args);
+
+function setData(snap) {
+  if (snap.needsOnboarding || snap.locked || snap.needsTerms) { S.data = null; S.gate = snap; renderGate(); return; }
+  S.gate = null;
+  S.data = snap;
+  const d = snap;
+  IDX = { p: {}, tByP: {}, fByP: {}, tpl: {}, t: {} };
+  d.patients.forEach(p => IDX.p[p.id] = p);
+  d.treatments.forEach(t => { IDX.t[t.id] = t; (IDX.tByP[t.patientId] = IDX.tByP[t.patientId] || []).push(t); });
+  d.forms.forEach(f => (IDX.fByP[f.patientId] = IDX.fByP[f.patientId] || []).push(f));
+  d.templates.forEach(t => IDX.tpl[t.key] = t);
+  render();
+}
+
+let toastTimer;
+function toast(msg, err) {
+  const box = document.getElementById('toast');
+  box.innerHTML = '';
+  box.appendChild(h('div', { class: err ? 'err' : '' }, msg));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => box.innerHTML = '', err ? 6000 : 2800);
+}
+
+/** Tiny DOM builder. Strings become text nodes (never HTML), so patient data can't inject markup. */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'value') el.value = v;
+    else if (k === 'checked' || k === 'selected' || k === 'disabled') el[k] = !!v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat(9).forEach(c => { if (c !== null && c !== undefined && c !== false) el.appendChild(c instanceof Node ? c : document.createTextNode(String(c))); });
+  return el;
+}
+const opt = (value, label, sel) => h('option', { value, selected: sel }, label === undefined ? value : label);
+
+/* ================= dates ================= */
+const pad = n => String(n).padStart(2, '0');
+function D(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null;
+}
+const DAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+const dKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fDate = d => `${d.getDate()}.${d.getMonth() + 1}`;
+const fDateY = d => `${d.getDate()}.${d.getMonth() + 1}.${String(d.getFullYear()).slice(2)}`;
+const fDay = d => `יום ${DAYS[d.getDay()]} ${fDate(d)}`;
+const fTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function daysFromToday(d) {
+  const a = new Date(); a.setHours(0, 0, 0, 0);
+  const b = new Date(d); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 864e5);
+}
+function rel(d) {
+  const n = daysFromToday(d);
+  if (n === 0) return 'היום'; if (n === 1) return 'מחר'; if (n === -1) return 'אתמול';
+  return n > 0 ? `בעוד ${n} ימים` : `לפני ${-n} ימים`;
+}
+
+/* ================= navigation ================= */
+function go(tab, extra) {
+  S.tab = tab;
+  if (tab !== 'patient') S.patientId = null;
+  Object.assign(S, extra || {});
+  render();
+  window.scrollTo(0, 0);
+  try {
+    google.script.history.replace(null, null, tab === 'patient' ? '/p/' + S.patientId : '/' + tab);
+  } catch (e) { /* harness */ }
+}
+const openPatient = id => go('patient', { patientId: id, backTab: S.tab === 'patient' ? S.backTab : S.tab });
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]');
+  if (b) go(b.dataset.tab);
+});
+document.getElementById('syncBtn').addEventListener('click', async () => {
+  S.med = {};
+  const r = await mutate('syncNow');
+  const parts = [];
+  if (r.imported) parts.push(`${r.imported} פניות חדשות מהטופס`);
+  if (r.refilled) parts.push(`${r.refilled} מילאו שוב`);
+  if (r.calendarChanges) parts.push(`${r.calendarChanges} שינויים מהיומן`);
+  toast(parts.length ? '✓ ' + parts.join(' · ') : '✓ הכול מעודכן');
+});
+
+/** How the app addresses the user (setting "userGender"): G('בחר', 'בחרי', 'יש לבחור'). */
+function userGender() { return (S.data && S.data.settings.userGender) || S.onboardGender || ''; }
+function G(m, f, n) { const g = userGender(); return g === 'זכר' ? m : g === 'נקבה' ? f : (n !== undefined ? n : m + '/' + f); }
+
+function render() {
+  if (!S.data) return;
+  document.getElementById('tabs').classList.remove('hidden');
+  document.getElementById('syncBtn').classList.remove('hidden');
+  document.getElementById('settingsBtn').classList.remove('hidden');
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === (S.tab === 'patient' ? S.backTab : S.tab)));
+  document.getElementById('syncLabel').textContent = S.data.settings.lastSync ? 'סונכרן ' + S.data.settings.lastSync : '';
+  const v = document.getElementById('view');
+  const screens = { today: viewToday, table: viewTable, schedule: viewSchedule, messages: viewMessages, reqs: viewReqs, templates: viewTemplates, patient: viewPatient };
+  v.replaceChildren(...[].concat((screens[S.tab] || viewToday)()).flat(9).filter(x => x !== null && x !== undefined && x !== false));
+}
+
+/* ================= helpers ================= */
+const closed = p => p.status === 'הסתיים' || p.status === 'לא מתאים';
+const statusBadge = s => h('span', { class: 'badge ' + ({ 'פנייה חדשה': 'new', 'הסתיים': 'gray', 'לא מתאים': 'gray' }[s] || 'ok') }, s || '—');
+const tBadge = s => h('span', { class: 'badge ' + ({ 'נקבע': '', 'נדרש': 'warn', 'בוצע': 'ok', 'בוטל': 'gray', 'לא הגיע': 'danger' }[s] || 'gray') }, s);
+const tplByTrigger = trig => S.data.templates.find(t => t.trigger === trig);
+const OFFSET_LABEL = { 14: 'תזכורת שבועיים', 7: 'תזכורת שבוע', 1: 'תזכורת יום לפני' };
+const OFFSET_TRIGGER = { 14: 'תזכורת 14 ימים', 7: 'תזכורת 7 ימים', 1: 'תזכורת יום לפני' };
+
+function nextLine(p) {
+  const n = D(p.tr.next);
+  return n ? h('span', null, `▶ ${fDay(n)} ${fTime(n)} · ${p.tr.nextType}`) : h('span', { class: 'muted' }, 'אין תור קרוב');
+}
+
+function patientRow(p) {
+  const last = D(p.tr.lastVisit);
+  return h('div', { class: 'card tap', onclick: () => openPatient(p.id) },
+    h('div', { class: 'row' },
+      h('span', { class: 'name grow ellipsis' }, p.name),
+      p.status === 'פנייה חדשה' ? statusBadge(p.status) : null,
+      String(p.courses || '').split(/,\s*/).filter(Boolean).slice(0, 2).map(c => h('span', { class: 'badge gray' }, c))),
+    h('div', { class: 'p-line' }, nextLine(p)),
+    h('div', { class: 'p-line small' },
+      h('span', null, last ? `ביקור אחרון ${fDateY(last)}` : 'עוד לא טופל/ה'),
+      p.tr.remaining.length ? h('span', null, p.tr.remaining.length === 1 ? '· נשאר טיפול אחד' : `· נשארו ${p.tr.remaining.length} טיפולים`) : null,
+      p.tr.missingForms.length ? h('span', { class: 'badge warn' }, p.tr.missingForms.length === 1 ? 'טופס חסר' : `${p.tr.missingForms.length} טפסים חסרים`) : null));
+}
+
+/* ================= screen 1: today ================= */
+const BUILTIN_VIEWS = {
+  upcoming: { label: 'טיפולים קרובים', spec: { sort: 'next', hasNext: 'yes', status: 'open' } },
+  waiting: { label: 'ממתינים לקביעת תור', spec: { sort: 'name', hasNext: 'no', needed: true, status: 'open' } },
+  stale: { label: 'לא טופלו מעל 6 חודשים', spec: { sort: 'last', lastOlderMonths: 6, status: 'open' } },
+  all: { label: 'כל הפעילים', spec: { sort: 'name', status: 'open' } }
+};
+
+function currentSpec() {
+  if (S.view.builtin) return Object.assign({}, BUILTIN_VIEWS[S.view.builtin].spec);
+  if (S.view.saved) { const v = S.data.views.find(x => x.name === S.view.saved); if (v) return Object.assign({}, v.spec); }
+  return Object.assign({}, S.view.spec || BUILTIN_VIEWS.upcoming.spec);
+}
+
+function applySpec(spec) {
+  const now = new Date();
+  let list = S.data.patients.filter(p => {
+    if (spec.status === 'open' && closed(p)) return false;
+    if (spec.status && spec.status !== 'open' && spec.status !== 'all' && p.status !== spec.status) return false;
+    if (spec.course && !String(p.courses || '').split(/,\s*/).includes(spec.course)) return false;
+    if (spec.type && !(IDX.tByP[p.id] || []).some(t => t.type === spec.type && t.status !== 'בוטל')) return false;
+    if (spec.hasNext === 'yes' && !p.tr.next) return false;
+    if (spec.hasNext === 'no' && p.tr.next) return false;
+    if (spec.needed && !p.tr.neededCount) return false;
+    if (spec.lastOlderMonths) {
+      const last = D(p.tr.lastVisit);
+      if (!last) return false;
+      const lim = new Date(now); lim.setMonth(lim.getMonth() - Number(spec.lastOlderMonths));
+      if (last > lim) return false;
+    }
+    if (spec.q) {
+      const q = spec.q.trim();
+      if (q && !(String(p.name).includes(q) || String(p.phone).replace(/\D/g, '').includes(q.replace(/\D/g, '') || '~'))) return false;
+    }
+    return true;
+  });
+  const by = {
+    next: (a, b) => (D(a.tr.next) || 8e15) - (D(b.tr.next) || 8e15),
+    last: (a, b) => (D(a.tr.lastVisit) || 0) - (D(b.tr.lastVisit) || 0),
+    name: (a, b) => String(a.name).localeCompare(String(b.name), 'he'),
+    created: (a, b) => (D(b.created) || 0) - (D(a.created) || 0)
+  }[spec.sort || 'next'];
+  return list.sort(by);
+}
+
+function formHelp() {
+  sheet(close => [
+    h('h3', null, '📝 חיבור טופס הקבלה'),
+    h('p', null, 'פניות חדשות נכנסות לבד ל"מטופלים" ברגע שהטופס שולח את התשובות לגיליון של המערכת:'),
+    h('ol', { style: 'padding-inline-start:20px;margin:6px 0' },
+      h('li', null, 'לפתוח את הטופס ב-Google Forms (מצב עריכה)'),
+      h('li', null, 'לשונית "תגובות" ← "קישור ל-Sheets"'),
+      h('li', null, '"בחירת גיליון אלקטרוני קיים" ← לבחור את "MoonCRM"'),
+      h('li', null, 'לחזור לכאן וללחוץ ⟳ למעלה')),
+    h('p', { class: 'muted small' }, 'אם הטופס כבר מחובר לגיליון אחר – אפשר לנתק אותו שם ולחבר מחדש. התשובות הישנות נשארות בגיליון הישן.'),
+    h('div', { class: 'actions' }, h('a', { class: 'btn', href: S.data.settings.sheetUrl, target: '_blank' }, '📄 הגיליון של המערכת ↗'),
+      h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+  ]);
+}
+
+/** "First steps" card until everything is set up (or the user hides it). */
+function firstSteps() {
+  const d = S.data, s = d.settings;
+  if (s.checklistHidden) return null;
+  const steps = [
+    [d.patients.length > 0, 'להוסיף מטופל/ת ראשון/ה', 'הוספה', () => patientEditor()],
+    [s.hasForm, 'לחבר את טופס הקבלה – פניות חדשות ייכנסו לבד', 'איך?', formHelp],
+    [(d.sources || []).length > 0, 'לחבר טבלת תורנויות משותפת (אם יש)', 'חיבור', sourcesDialog],
+    [s.hasAiKey, 'לחבר Gemini – כדי שקובצי דרישות ינותחו', 'חיבור', () => aiKeyDialog()],
+    [d.courses.length > 0, 'להעלות את דרישות הקורסים', 'העלאה', uploadFlow]
+  ];
+  const done = steps.filter(x => x[0]).length;
+  if (done === steps.length) return null;
+  return h('div', { class: 'card', style: 'border-inline-start:4px solid var(--brand)' },
+    h('div', { class: 'row' }, h('b', { class: 'grow' }, '🚀 צעדים ראשונים'), h('span', { class: 'badge' }, `${done}/${steps.length}`)),
+    steps.map(([ok, label, btn, fn]) => h('div', { class: 'form-row' + (ok ? ' done' : '') },
+      h('span', { style: 'width:20px' }, ok ? '✅' : '⬜'), h('span', { class: 'grow' }, label),
+      ok ? null : h('button', { class: 'btn sm', onclick: fn }, btn))),
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost sm', onclick: () => mutate('saveSettings', { checklistHidden: 'כן' }) }, 'הסתרה')));
+}
+
+function viewToday() {
+  const d = S.data, todo = d.todo, out = [licenseBanner(), firstSteps()];
+  const tasks = todo.reminders.length + todo.recalls.length;
+
+  if (todo.newCount) out.push(h('div', { class: 'pill-new', onclick: () => go('table', { tableFilter: 'new' }) },
+    h('span', { class: 'grow' }, `🆕 ${todo.newCount} ${todo.newCount === 1 ? 'פנייה חדשה' : 'פניות חדשות'} מהטופס`), h('span', null, '←')));
+
+  out.push(h('h2', null, '📲 לשליחה היום', tasks ? h('span', { class: 'count' }, tasks) : null));
+  if (!tasks) out.push(h('div', { class: 'card empty' }, 'אין תזכורות לשליחה היום 🎉'));
+
+  todo.reminders.forEach(r => {
+    const p = IDX.p[r.patientId], t = IDX.t[r.treatmentId];
+    if (!p || !t) return;
+    const s = D(t.start), label = OFFSET_LABEL[r.offset] || `תזכורת ${r.offset} ימים`;
+    const tpl = tplByTrigger(OFFSET_TRIGGER[r.offset]);
+    out.push(h('div', { class: 'card todo' },
+      h('div', { class: 'row' }, h('span', { class: 'name grow tap', onclick: () => openPatient(p.id) }, p.name), h('span', { class: 'badge' }, label)),
+      h('div', { class: 'p-line' }, `${t.type} · ${fDay(s)} ${fTime(s)} (${rel(s)})`),
+      h('div', { class: 'actions' },
+        /שיחה|טלפון/.test(p.contactPref || '') && p.phone ? h('a', { class: 'btn sm', href: 'tel:' + p.phone }, '📞 שיחה') : null,
+        h('button', { class: 'btn wa sm', onclick: () => composer(p.id, { templateKey: tpl && tpl.key, treatmentId: t.id, sentKey: r.key, sentLabel: label }) }, '💬 ניסוח ושליחה'),
+        h('button', { class: 'btn sm', onclick: () => mutate('markSent', r.key, p.id, label).then(() => toast('סומן כנשלח')) }, '✓ נשלח'))));
+  });
+
+  todo.recalls.forEach(r => {
+    const p = IDX.p[r.patientId];
+    if (!p) return;
+    const rd = D(r.recallDate), tpl = tplByTrigger('ביקורת');
+    out.push(h('div', { class: 'card todo recall' },
+      h('div', { class: 'row' }, h('span', { class: 'name grow tap', onclick: () => openPatient(p.id) }, p.name),
+        h('span', { class: 'badge ' + (r.overdue ? 'danger' : 'warn') }, r.overdue ? 'ביקורת באיחור' : 'ביקורת')),
+      h('div', { class: 'p-line' }, `מועד ביקורת: ${fDateY(rd)} (${rel(rd)}) · אין תור קבוע`),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn wa sm', onclick: () => composer(p.id, { templateKey: tpl && tpl.key, sentKey: r.key, sentLabel: 'זימון לביקורת' }) }, '💬 זימון לביקורת'),
+        h('button', { class: 'btn sm', onclick: () => mutate('markSent', r.key, p.id, 'זימון לביקורת').then(() => toast('סומן כנשלח')) }, '✓ נשלח'))));
+  });
+
+  if (todo.forms.length) {
+    out.push(h('h2', null, '📝 טפסים חסרים', h('span', { class: 'count' }, todo.forms.length)));
+    out.push(h('div', { class: 'card' }, todo.forms.map(f => {
+      const p = IDX.p[f.patientId];
+      const ftpl = tplByTrigger('טופס חסר');
+      return p ? h('div', { class: 'form-row tap', onclick: () => openPatient(p.id) },
+        h('span', { class: 'name' }, p.name), h('span', { class: 'muted grow ellipsis' }, f.forms.join(', ')),
+        ftpl ? h('button', { class: 'btn wa sm', title: 'בקשה למלא', onclick: e => { e.stopPropagation(); composer(p.id, { templateKey: ftpl.key }); } }, '💬') : null) : null;
+    })));
+  }
+
+  out.push(...patientListSection());
+  return out;
+}
+
+function patientListSection() {
+  const spec = currentSpec(), list = applySpec(spec), d = S.data;
+  const viewSel = h('select', { class: 'i', style: 'flex:1', onchange: e => {
+    const v = e.target.value;
+    S.view = v.startsWith('saved:') ? { saved: v.slice(6) } : { builtin: v };
+    render();
+  } },
+    Object.entries(BUILTIN_VIEWS).map(([k, v]) => opt(k, v.label, S.view.builtin === k)),
+    d.views.length ? h('optgroup', { label: 'התצוגות שלי' }, d.views.map(v => opt('saved:' + v.name, v.name, S.view.saved === v.name))) : null,
+    !S.view.builtin && !S.view.saved ? opt('', 'סינון מותאם', true) : null);
+
+  const setSpec = patch => { S.view = { spec: Object.assign(currentSpec(), patch) }; render(); };
+  const types = d.types.map(t => t.name);
+  const filters = h('div', { class: 'card' + (S.showFilters ? '' : ' hidden') },
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'קורס'), h('select', { class: 'i', onchange: e => setSpec({ course: e.target.value }) },
+        opt('', 'הכול', !spec.course), d.courses.map(c => opt(c, c, spec.course === c)))),
+      h('div', null, h('label', { class: 'f' }, 'סוג טיפול'), h('select', { class: 'i', onchange: e => setSpec({ type: e.target.value }) },
+        opt('', 'הכול', !spec.type), types.map(t => opt(t, t, spec.type === t)))),
+      h('div', null, h('label', { class: 'f' }, 'סטטוס'), h('select', { class: 'i', onchange: e => setSpec({ status: e.target.value }) },
+        opt('open', 'פתוחים', spec.status === 'open'), opt('all', 'הכול', spec.status === 'all'),
+        ['פנייה חדשה', 'פעיל', 'הסתיים', 'לא מתאים'].map(s => opt(s, s, spec.status === s)))),
+      h('div', null, h('label', { class: 'f' }, 'תור עתידי'), h('select', { class: 'i', onchange: e => setSpec({ hasNext: e.target.value }) },
+        opt('', 'לא משנה', !spec.hasNext), opt('yes', 'יש תור', spec.hasNext === 'yes'), opt('no', 'אין תור', spec.hasNext === 'no'))),
+      h('div', null, h('label', { class: 'f' }, 'ביקור אחרון לפני יותר מ־'), h('select', { class: 'i', onchange: e => setSpec({ lastOlderMonths: Number(e.target.value) || 0 }) },
+        opt('0', 'לא משנה', !spec.lastOlderMonths), [1, 3, 6, 12].map(m => opt(String(m), m + ' חודשים', Number(spec.lastOlderMonths) === m)))),
+      h('div', null, h('label', { class: 'f' }, 'מיון'), h('select', { class: 'i', onchange: e => setSpec({ sort: e.target.value }) },
+        opt('next', 'טיפול קרוב', spec.sort === 'next'), opt('last', 'ביקור אחרון (ישן קודם)', spec.sort === 'last'),
+        opt('name', 'שם', spec.sort === 'name'), opt('created', 'נוסף לאחרונה', spec.sort === 'created')))),
+    h('label', { class: 'row small', style: 'margin-top:10px' }, h('input', { type: 'checkbox', checked: !!spec.needed, onchange: e => setSpec({ needed: e.target.checked }) }), 'רק מי שיש לו טיפולים שעדיין לא נקבעו'),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary sm', onclick: async () => {
+        const name = await askText('שם לתצוגה', S.view.saved || '');
+        if (!name) return;
+        await mutate('saveView', name.trim(), spec);
+        S.view = { saved: name.trim() }; render(); toast('התצוגה נשמרה');
+      } }, '💾 שמירה כתצוגה'),
+      S.view.saved ? h('button', { class: 'btn danger sm', onclick: async () => {
+        if (!await ask(`למחוק את התצוגה "${S.view.saved}"?`, 'מחיקה')) return;
+        await mutate('deleteView', S.view.saved); S.view = { builtin: 'upcoming' }; render();
+      } }, 'מחיקת התצוגה') : null));
+
+  return [
+    h('h2', null, '👥 המטופלים שלי', h('span', { class: 'count' }, list.length)),
+    h('div', { class: 'row', style: 'margin-bottom:8px' }, viewSel,
+      h('button', { class: 'btn' + (S.showFilters ? ' primary' : ''), onclick: () => { S.showFilters = !S.showFilters; render(); } }, '⚙︎ סינון'),
+      h('button', { class: 'btn', onclick: () => patientEditor() }, '+')),
+    filters,
+    list.length ? list.map(patientRow) : h('div', { class: 'card empty' }, 'אין מטופלים בתצוגה הזו')
+  ];
+}
+
+/* ================= screen 2: full table (columns chosen by the user) ================= */
+/** 0501234567 / 050-1234567 → "050‑1234567" that never wraps or flips inside RTL text. */
+function fPhone(v) {
+  const raw = String(v || '').trim(), dg = raw.replace(/\D/g, '');
+  const f = /^05\d{8}$/.test(dg) ? dg.slice(0, 3) + '\u2011' + dg.slice(3) : /^0\d{8}$/.test(dg) ? dg.slice(0, 2) + '\u2011' + dg.slice(2) : raw;
+  return f ? '\u200E' + f : '';
+}
+
+const DEFAULT_COLUMNS = ['phone', 'contactPref', 'status', 'courses', 'lastVisit', 'next', 'done', 'remaining', 'recallDate', 'missingForms', 'notes'];
+
+/** Every column the table can show: built-in fields, computed tracking, then the user's own sheet columns. */
+function tableColumnDefs() {
+  const dc = s => { const x = D(s); return x ? fDateY(x) : ''; };
+  const defs = [
+    ['phone', 'טלפון', p => fPhone(p.phone)], ['contactPref', 'דרך יצירת קשר', p => p.contactPref], ['idNumber', 'ת"ז', p => p.idNumber],
+    ['email', 'מייל', p => p.email], ['status', 'סטטוס', null], ['courses', 'קורסים', p => p.courses], ['gender', 'לשון פנייה', p => p.gender],
+    ['hmo', 'קופ"ח', p => p.hmo], ['lastVisit', 'ביקור אחרון', p => dc(p.tr.lastVisit)],
+    ['next', 'טיפול הבא', p => { const n = D(p.tr.next); return n ? `${fDay(n)} ${fTime(n)}\n${p.tr.nextType}` : ''; }],
+    ['done', 'בוצעו', p => p.tr.done.join('\n')], ['remaining', 'נשארו', p => p.tr.remaining.join('\n')],
+    ['recallDate', 'ביקורת', p => dc(p.recallDate)], ['missingForms', 'טפסים חסרים', p => p.tr.missingForms.join(', ')],
+    ['reason', 'סיבת פנייה', p => p.reason], ['pastTreatments', 'טיפולי עבר', p => p.pastTreatments], ['source', 'איך הגיע/ה', p => p.source],
+    ['notes', 'הערות', p => p.notes], ['created', 'נוסף', p => dc(p.created)]
+  ].map(([key, title, get]) => ({ key, title, get }));
+  (S.data.patientColumns || []).forEach(title => defs.push({ key: 'x:' + title, title, get: p => {
+    const v = (p.extra || {})[title]; const x = D(v); return x && /^\d{4}-\d{2}-\d{2}/.test(String(v)) ? fDateY(x) : (v === null || v === undefined ? '' : String(v));
+  } }));
+  return defs;
+}
+
+function chosenColumns() {
+  const saved = S.data.settings.tableColumns || [];
+  const keys = saved.length ? saved : DEFAULT_COLUMNS;
+  const defs = tableColumnDefs(), byKey = {};
+  defs.forEach(c => byKey[c.key] = c);
+  const cols = keys.map(k => byKey[k]).filter(Boolean);
+  if (!cols.some(c => c.key === 'status')) cols.unshift(byKey.status); // carries the approve-inquiry controls
+  return cols;
+}
+
+function columnsDialog() {
+  const defs = tableColumnDefs(), on = new Set(chosenColumns().map(c => c.key));
+  const newCol = h('input', { class: 'i', placeholder: 'למשל: ת"ז הורה, שפה מועדפת' });
+  sheet(close => [
+    h('h3', null, '☰ עמודות בטבלה'),
+    h('p', { class: 'muted small' }, 'העמודה "שם" מוצגת תמיד. עמודות שהוספת לגיליון "מטופלים" מופיעות כאן אוטומטית.'),
+    h('div', { class: 'card' }, defs.map(c => h('label', { class: 'form-row' },
+      h('input', { type: 'checkbox', checked: on.has(c.key), disabled: c.key === 'status', onchange: e => e.target.checked ? on.add(c.key) : on.delete(c.key) }),
+      h('span', { class: 'grow' }, c.title), c.key.startsWith('x:') ? h('span', { class: 'badge gray' }, 'עמודה שלך') : null))),
+    h('label', { class: 'f' }, 'עמודה חדשה בגיליון'),
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, newCol),
+      h('button', { class: 'btn sm', onclick: async () => {
+        const t = newCol.value.trim(); if (!t) return;
+        await mutate('addPatientColumn', t);
+        await mutate('setTableColumns', Array.from(on).concat('x:' + t)); close(); columnsDialog();
+      } }, '+ הוספה')),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        const order = defs.map(c => c.key).filter(k => on.has(k));
+        await mutate('setTableColumns', order); close(); toast('נשמר');
+      } }, 'שמירה'),
+      h('button', { class: 'btn ghost', onclick: async () => { await mutate('setTableColumns', []); close(); } }, 'ברירת מחדל'),
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+function viewTable() {
+  const d = S.data, q = S.tableQ.trim();
+  const F = { open: p => !closed(p), new: p => p.status === 'פנייה חדשה', done: p => closed(p), all: () => true };
+  const order = { 'פנייה חדשה': 0, 'פעיל': 1, 'לא מתאים': 2, 'הסתיים': 3 };
+  const rows = d.patients.filter(F[S.tableFilter])
+    .filter(p => !q || [p.name, p.phone, p.notes, p.idNumber].some(v => String(v || '').includes(q)))
+    .sort((a, b) => (order[a.status] || 0) - (order[b.status] || 0) || String(a.name).localeCompare(String(b.name), 'he'));
+  const chip = (k, label) => h('button', { class: 'chip' + (S.tableFilter === k ? ' on' : ''), onclick: () => { S.tableFilter = k; render(); } }, label);
+  const newCount = d.patients.filter(F.new).length;
+  const cols = chosenColumns();
+
+  const search = h('input', { class: 'i', placeholder: '🔍 חיפוש שם / טלפון / ת"ז / הערה', value: S.tableQ, oninput: e => {
+    S.tableQ = e.target.value; const pos = e.target.selectionStart; render();
+    const el = document.querySelector('#view input.i'); if (el) { el.focus(); el.setSelectionRange(pos, pos); }
+  } });
+
+  const statusCell = p => {
+    if (p.status !== 'פנייה חדשה') return h('td', null, statusBadge(p.status), p.refilled === 'כן' ? h('div', { class: 'badge new', style: 'margin-top:4px' }, 'מילא/ה טופס שוב') : null);
+    return h('td', { onclick: e => e.stopPropagation() },
+      h('div', null, h('select', { onchange: e => mutate('savePatient', { id: p.id, gender: e.target.value }) },
+        opt('', 'לשון פנייה…', !p.gender), d.meta.genders.map(g => opt(g, g, p.gender === g)))),
+      h('div', { style: 'margin-top:4px' }, h('select', { onchange: e => mutate('savePatient', { id: p.id, courses: e.target.value }) },
+        opt('', 'קורס…', !p.courses), d.courses.map(c => opt(c, c, p.courses === c)))),
+      h('button', { class: 'btn primary sm', style: 'margin-top:4px', onclick: () => activate(p) }, '✓ אישור'));
+  };
+  const table = h('table', { class: 'tbl' },
+    h('thead', null, h('tr', null, h('th', null, 'שם'), cols.map(c => h('th', null, c.title)))),
+    h('tbody', null, rows.map(p => h('tr', { class: p.status === 'פנייה חדשה' ? 'new' : closed(p) ? 'closed' : '', onclick: () => openPatient(p.id) },
+      h('td', null, h('b', null, p.name)),
+      cols.map(c => c.key === 'status' ? statusCell(p) : h('td', null, c.get(p) || ''))))));
+
+  return [
+    h('div', { class: 'row', style: 'margin-bottom:8px' }, h('div', { class: 'grow' }, search),
+      h('button', { class: 'btn', title: 'בחירת עמודות', onclick: columnsDialog }, '☰'),
+      h('button', { class: 'btn primary', onclick: () => patientEditor() }, '+ מטופל/ת')),
+    h('div', { class: 'chips', style: 'margin-bottom:10px' },
+      chip('open', 'פתוחים'), chip('new', `פניות חדשות${newCount ? ` (${newCount})` : ''}`), chip('done', 'הסתיימו'), chip('all', 'הכול'),
+      h('a', { class: 'chip', href: d.settings.sheetUrl, target: '_blank' }, 'פתיחה בגיליון ↗')),
+    rows.length ? h('div', { class: 'tbl-wrap' }, table) : h('div', { class: 'card empty' }, 'אין שורות להצגה')
+  ];
+}
+
+/* ================= messages: compose to anyone + history ================= */
+const CHANNEL_ICON = { 'וואטסאפ': '💬', 'SMS': '✉️', 'מייל': '📧' };
+
+function viewMessages() {
+  const d = S.data, q = (S.msgQ || '').trim();
+  const pick = (S.msgPick || '').trim();
+  const matches = pick ? d.patients.filter(p => String(p.name).includes(pick) || String(p.phone || '').replace(/\D/g, '').includes(pick.replace(/\D/g, '') || '~')).slice(0, 8) : [];
+  const keepFocus = (sel, v) => { const pos = v.length; render(); const el = document.querySelector(sel); if (el) { el.focus(); el.setSelectionRange(pos, pos); } };
+  const pickIn = h('input', { class: 'i', id: 'msgPick', placeholder: G('חפש', 'חפשי', 'חיפוש') + ' מטופל/ת לפי שם או טלפון', value: S.msgPick || '',
+    oninput: e => { S.msgPick = e.target.value; keepFocus('#msgPick', e.target.value); } });
+  const histIn = h('input', { class: 'i', id: 'msgQ', placeholder: '🔍 סינון ההיסטוריה', value: S.msgQ || '',
+    oninput: e => { S.msgQ = e.target.value; keepFocus('#msgQ', e.target.value); } });
+  const ch = S.msgCh || '';
+  const hist = (d.sentLog || []).slice().sort((a, b) => (D(b.at) || 0) - (D(a.at) || 0)).filter(s => {
+    const p = IDX.p[s.patientId];
+    if (ch && (s.channel || '') !== ch) return false;
+    return !q || [p && p.name, s.label, s.text].some(v => String(v || '').includes(q));
+  });
+  const chip = (k, label) => h('button', { class: 'chip' + (ch === k ? ' on' : ''), onclick: () => { S.msgCh = k; render(); } }, label);
+
+  return [
+    h('h2', { style: 'margin-top:0' }, '✍️ הודעה חדשה'),
+    h('div', { class: 'card' }, pickIn,
+      matches.length ? matches.map(p => h('div', { class: 'form-row tap', onclick: () => { S.msgPick = ''; composer(p.id, {}); } },
+        h('span', { class: 'name grow' }, p.name), h('span', { class: 'muted small' }, [p.contactPref, fPhone(p.phone)].filter(Boolean).join(' · ')), h('span', null, '✍️')))
+        : pick ? h('div', { class: 'muted small', style: 'margin-top:6px' }, 'לא נמצאו מטופלים') :
+          h('div', { class: 'muted small', style: 'margin-top:6px' }, 'בוחרים מטופל/ת ותבנית, והמערכת מנסחת את ההודעה – בלי קשר ללו״ז.')),
+    h('h2', null, '📨 הודעות שנשלחו', h('span', { class: 'count' }, hist.length)),
+    histIn,
+    h('div', { class: 'chips', style: 'margin:8px 0' }, chip('', 'הכול'), chip('וואטסאפ', '💬 וואטסאפ'), chip('SMS', '✉️ SMS'), chip('מייל', '📧 מייל')),
+    hist.length ? h('div', { class: 'card' }, hist.slice(0, 200).map(s => {
+      const p = IDX.p[s.patientId], body = h('div', { class: 'muted small hidden', style: 'white-space:pre-wrap;margin-top:4px' }, s.text || '(הטקסט לא נשמר)');
+      return h('div', { class: 't-item' },
+        h('div', { class: 't-date' }, D(s.at) ? [h('b', null, fDate(D(s.at))), fTime(D(s.at))] : ''),
+        h('div', { class: 'grow tap', onclick: () => body.classList.toggle('hidden') },
+          h('div', { class: 'row' }, h('b', { class: 'grow' }, p ? p.name : '—'), h('span', null, CHANNEL_ICON[s.channel] || '✓')),
+          h('div', { class: 'small' }, s.label || ''), body),
+        p ? h('button', { class: 'btn ghost sm', title: 'כרטיס', onclick: () => openPatient(p.id) }, '←') : null);
+    })) : h('div', { class: 'card empty' }, 'עוד לא נשלחו הודעות')
+  ];
+}
+
+/* ================= screen 4: schedule (CRM appointments + imported tables) ================= */
+function viewSchedule() {
+  const now = new Date(), d = S.data, past = S.schedMode === 'past', all = !!S.schedAll;
+  const from = new Date(now); from.setHours(0, 0, 0, 0);
+  const lim = new Date(from); lim.setDate(lim.getDate() + (past ? -45 : 90));
+  const inRange = s => s && (past ? (s < from && s >= lim) : (s >= from && s <= lim));
+  const srcName = {}; (d.sources || []).forEach(s => srcName[s.id] = s.name);
+  // A table row that already became an appointment here (same time, same patient) is shown once.
+  const first = n => String(n || '').trim().split(/\s+/)[0];
+  const booked = new Set(d.treatments.filter(t => t.status !== 'בוטל' && t.start && IDX.p[t.patientId]).map(t => +D(t.start) + '|' + first(IDX.p[t.patientId].name)));
+  const items = d.treatments.filter(t => t.status !== 'בוטל' && IDX.p[t.patientId] && inRange(D(t.start)))
+    .map(t => ({ kind: 'crm', start: D(t.start), t }))
+    .concat((d.external || []).filter(e => !e.fromCrm && (all || e.mine) && inRange(D(e.start)) && !booked.has(+D(e.start) + '|' + first(e.title))).map(e => ({ kind: 'ext', start: D(e.start), e })))
+    .sort((a, b) => past ? b.start - a.start : a.start - b.start);
+  const groups = [];
+  items.forEach(it => {
+    const k = dKey(it.start);
+    if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, d: it.start, items: [] });
+    groups[groups.length - 1].items.push(it);
+  });
+  const matchPatient = name => {
+    const n = String(name).trim(), first = n.split(/\s+/)[0];
+    const hits = d.patients.filter(p => p.name === n || (first.length > 1 && String(p.name).split(/\s+/)[0] === first));
+    return hits.length === 1 ? hits[0] : null;
+  };
+  const row = it => {
+    if (it.kind === 'crm') {
+      const t = it.t, p = IDX.p[t.patientId];
+      return h('div', { class: 't-item tap', onclick: () => openPatient(p.id) },
+        h('div', { class: 't-date' }, h('b', null, fTime(it.start))),
+        h('div', { class: 'grow' }, h('div', { class: 'name' }, p.name), h('div', { class: 'muted' }, [t.type, t.tooth, t.course].filter(Boolean).join(' · '))),
+        tBadge(t.status));
+    }
+    const e = it.e, p = matchPatient(e.title);
+    return h('div', { class: 't-item' + (e.mine ? '' : ' muted') },
+      h('div', { class: 't-date' }, h('b', null, e.whole ? 'כל היום' : fTime(it.start))),
+      h('div', { class: 'grow' },
+        h('div', { class: 'name' + (p ? ' tap' : ''), onclick: p ? () => openPatient(p.id) : null }, e.title),
+        h('div', { class: 'muted small' }, [e.detail, e.note].filter(Boolean).join(' · ')),
+        h('div', { class: 'small' }, h('span', { class: 'badge gray' }, '📋 ' + (srcName[e.sourceId] || 'טבלה')), e.mine ? null : h('span', { class: 'muted' }, ' · לא שלי'))),
+      !p && e.mine && !/תורנות|חופש|דדליין|מבחן|כפולה|משמרת|הרצאה/.test(e.title) ? h('button', { class: 'btn ghost sm', title: 'הוספה כמטופל/ת', onclick: () => patientEditor(e.title, e) }, '+ מטופל/ת') : null);
+  };
+  return [
+    h('div', { class: 'row', style: 'margin-bottom:10px' },
+      h('div', { class: 'seg grow' },
+        h('button', { class: past ? '' : 'on', onclick: () => { S.schedMode = 'next'; render(); } }, 'קרובים'),
+        h('button', { class: past ? 'on' : '', onclick: () => { S.schedMode = 'past'; render(); } }, 'עבר')),
+      h('button', { class: 'btn', onclick: sourcesDialog }, '🔗 טבלאות'),
+      d.settings.calendarUrl ? h('a', { class: 'btn', href: d.settings.calendarUrl, target: '_blank' }, '📅 ↗') : null),
+    (d.sources || []).length ? h('label', { class: 'row small', style: 'margin:-4px 0 8px' },
+      h('input', { type: 'checkbox', checked: all, onchange: e => { S.schedAll = e.target.checked; render(); } }), 'להציג גם רשומות מהטבלאות שאינן שלי') : null,
+    groups.length ? groups.map(g => [
+      h('h2', null, fDay(g.d), h('span', { class: 'muted small' }, rel(g.d))),
+      h('div', { class: 'card' }, g.items.map(row))
+    ]) : h('div', { class: 'card empty' }, past ? 'אין תורים ב־45 הימים האחרונים' : 'אין תורים קבועים ב־90 הימים הקרובים')
+  ];
+}
+
+/* ---------- schedule tables (external Google Sheets) ---------- */
+function sourcesDialog() {
+  const d = S.data;
+  sheet(close => [
+    h('h3', null, '🔗 טבלאות לו״ז'),
+    h('p', { class: 'muted small' }, 'חיבור לגיליון גוגל שמנהלים יחד עם אחרים (טבלת תורנויות, רשימת תורים, לוח שבועי). המערכת מזהה את המבנה, לוקחת רק את מה שמוגדר כשלך, ויכולה גם לרשום בה תורים חדשים – לפי מה שבוחרים לכל טבלה.'),
+    (d.sources || []).length ? h('div', { class: 'card' }, d.sources.map(s => h('div', { class: 't-item' },
+      h('div', { class: 'grow' }, h('b', null, s.name),
+        h('div', { class: 'muted small' }, (s.tab ? s.tab + ' · ' : '') + (s.lastSync ? 'עודכן ' + s.lastSync : 'טרם סונכרן') + (s.toCalendar ? ' · נכנס ליומן' : '')),
+        h('label', { class: 'row small', style: 'margin-top:4px' },
+          h('input', { type: 'checkbox', checked: s.write, onchange: async e => {
+            const on = e.target.checked;
+            if (on && !await ask(`להפעיל עדכון של "${s.name}"?\nתורים שנקבעים במערכת יירשמו בטבלה המשותפת – רק בתאים ריקים. ביטול תור ימחק רק את מה שהמערכת עצמה רשמה.`, 'הפעלה')) { e.target.checked = false; return; }
+            await mutate('setSourceWrite', s.id, on); toast(on ? '✍️ עדכון הטבלה הופעל' : '📖 הטבלה במצב קריאה בלבד');
+          } }), s.write ? '✍️ קריאה ועדכון' : '📖 קריאה בלבד')),
+      h('button', { class: 'btn sm', onclick: () => { close(); sourceEditor(s); } }, 'עריכה'),
+      h('button', { class: 'btn ghost sm', onclick: async () => {
+        if (!await ask(`להסיר את "${s.name}"? הרשומות שיובאו ממנה יוסרו מהלו״ז. הגיליון עצמו לא משתנה.`, 'הסרה')) return;
+        await mutate('deleteScheduleSource', s.id); close(); sourcesDialog();
+      } }, '✕')))) : null,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: () => { close(); sourceEditor(null); } }, '+ חיבור טבלה'),
+      (d.sources || []).length ? h('button', { class: 'btn', onclick: async () => { const r = await mutate('syncScheduleSources'); toast(`✓ עודכנו ${r.sources} טבלאות`); } }, '⟳ עדכון עכשיו') : null,
+      h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+  ]);
+}
+
+const MODEL_INFO = {
+  blocks: ['בלוקים', 'עמודת תוויות שחוזרות (תאריך / שם / תכנון) ומשבצות עם שעה'],
+  list: ['רשימה', 'שורה לכל רשומה, עם כותרות עמודות'],
+  matrix: ['לוח', 'תאריכים לרוחב, שעות לאורך, רשומות בתאים']
+};
+const COND_FIELDS = { any: 'כל הטקסט', title: 'שם / כותרת', detail: 'פירוט', owner: 'עמודת שיוך', note: 'הערה בתאריך', color: 'צבע התא', weekday: 'יום בשבוע' };
+const COND_OPS = { contains: 'מכיל', notContains: 'לא מכיל', equals: 'שווה ל', regex: 'ביטוי רגולרי' };
+
+function sourceEditor(src) {
+  const st = { id: src ? src.id : '', name: src ? src.name : '', url: src ? src.url : '', tab: src ? src.tab : '',
+    spec: src ? JSON.parse(JSON.stringify(src.spec)) : null, toCalendar: src ? src.toCalendar : true,
+    writeChoice: src ? (src.write ? 'write' : 'read') : '', prev: null, loading: false };
+  const box = h('div');
+  let closeIt = () => {}, timer;
+  const load = async (opts) => {
+    opts = opts || {};
+    if (!st.url.trim()) return toast('צריך קישור לגיליון', true);
+    st.loading = true; paint(); busy(true);
+    try {
+      const r = await call('previewScheduleSource', { url: st.url.trim(), tab: st.tab, spec: opts.keepSpec || opts.smart ? st.spec : null, smart: !!opts.smart });
+      if (r.needsKey) { st.loading = false; busy(false); paint(); return aiKeyDialog(() => load(opts)); }
+      st.prev = r; st.tab = r.tab;
+      const keep = st.spec;
+      st.spec = r.spec;
+      if (!opts.keepSpec && keep) { st.spec.rules = keep.rules; st.spec.write = keep.write; } // a re-detect keeps the user's rules
+      if (!st.name) st.name = r.book;
+    } catch (e) { toast(e.message, true); }
+    finally { st.loading = false; busy(false); paint(); }
+  };
+  const reload = () => { clearTimeout(timer); timer = setTimeout(() => load({ keepSpec: true }), 350); };
+  const change = fn => { fn(st.spec); paint(); reload(); };
+
+  const letters = n => Array.from({ length: Math.max(n, 1) }, (_, i) => String.fromCharCode(65 + i));
+  const colSel = (val, onPick, allowNone) => h('select', { class: 'i', onchange: e => onPick(Number(e.target.value)) },
+    allowNone ? opt('0', '—', !val) : null,
+    letters(st.prev.width).map((l, i) => {
+      const hc = (st.prev.headerCells || [])[i];
+      return opt(String(i + 1), l + (hc && hc.text ? ' – ' + hc.text : ''), val === i + 1);
+    }));
+  const numIn = (val, onSet) => h('input', { class: 'i', type: 'number', min: 0, value: val || 0, onchange: e => onSet(Number(e.target.value) || 0) });
+  const colChips = (list, onToggle) => h('div', { class: 'chips', style: 'flex-wrap:wrap' }, letters(st.prev.width).map((l, i) => {
+    const on = (list || []).includes(i + 1);
+    return h('button', { class: 'chip' + (on ? ' on' : ''), onclick: () => onToggle(i + 1, on) }, l);
+  }));
+  const toggleIn = (arr, v, on) => on ? arr.filter(x => x !== v) : arr.concat(v).sort((a, b) => a - b);
+
+  function mappingUI() {
+    const sp = st.spec, r = st.prev;
+    if (sp.model === 'blocks') {
+      const b = sp.blocks = sp.blocks || { labelCol: 2, timeRow: 0, labels: {}, slotCols: [] };
+      const labelSel = key => h('select', { class: 'i', onchange: e => change(s => { s.blocks.labels = Object.assign({}, s.blocks.labels, { [key]: e.target.value }); }) },
+        opt('', '—'), r.labelsFound.map(l => opt(l, l, (b.labels || {})[key] === l)));
+      return [
+        h('div', { class: 'two' },
+          h('div', null, h('label', { class: 'f' }, 'עמודת התוויות'), colSel(b.labelCol, v => change(s => { s.blocks.labelCol = v; }))),
+          h('div', null, h('label', { class: 'f' }, 'שורת השעות (0 = אין)'), numIn(b.timeRow, v => change(s => { s.blocks.timeRow = v; })))),
+        h('div', { class: 'two' },
+          h('div', null, h('label', { class: 'f' }, 'תווית התאריך'), labelSel('date')),
+          h('div', null, h('label', { class: 'f' }, 'תווית השם/הכותרת'), labelSel('title'))),
+        h('label', { class: 'f' }, 'תווית הפירוט'), labelSel('detail'),
+        h('label', { class: 'f' }, 'עמודות המשבצות'), colChips(b.slotCols, (c, on) => change(s => { s.blocks.slotCols = toggleIn(s.blocks.slotCols || [], c, on); })),
+        r.slotTimes.length ? h('div', { class: 'small muted' }, r.slotTimes.map(x => `${x.col}: ${x.text.replace(/\n/g, ' ') || '—'}`).join(' · ')) : null
+      ];
+    }
+    if (sp.model === 'list') {
+      const l = sp.list = sp.list || { headerRow: 1, cols: {} };
+      const map = (key, label) => h('div', null, h('label', { class: 'f' }, label),
+        colSel((l.cols || {})[key] || 0, v => change(s => { s.list.cols = Object.assign({}, s.list.cols); if (v) s.list.cols[key] = v; else delete s.list.cols[key]; }), true));
+      return [
+        h('label', { class: 'f' }, 'שורת הכותרות'), numIn(l.headerRow, v => change(s => { s.list.headerRow = v || 1; })),
+        h('div', { class: 'two' }, map('date', 'תאריך *'), map('time', 'שעה')),
+        h('div', { class: 'two' }, map('title', 'שם / כותרת *'), map('detail', 'פירוט')),
+        h('div', { class: 'two' }, map('owner', 'שיוך (של מי)'), map('end', 'שעת סיום'))
+      ];
+    }
+    const m = sp.matrix = sp.matrix || { dateRow: 1, timeCol: 1, firstRow: 2, lastRow: 0, dateCols: [] };
+    return [
+      h('div', { class: 'two' },
+        h('div', null, h('label', { class: 'f' }, 'שורת התאריכים'), numIn(m.dateRow, v => change(s => { s.matrix.dateRow = v || 1; }))),
+        h('div', null, h('label', { class: 'f' }, 'עמודת השעות'), colSel(m.timeCol, v => change(s => { s.matrix.timeCol = v; })))),
+      h('div', { class: 'two' },
+        h('div', null, h('label', { class: 'f' }, 'שורה ראשונה'), numIn(m.firstRow, v => change(s => { s.matrix.firstRow = v; }))),
+        h('div', null, h('label', { class: 'f' }, 'שורה אחרונה (0 = עד הסוף)'), numIn(m.lastRow, v => change(s => { s.matrix.lastRow = v; })))),
+      h('label', { class: 'f' }, 'עמודות התאריכים'), colChips(m.dateCols, (c, on) => change(s => { s.matrix.dateCols = toggleIn(s.matrix.dateCols || [], c, on); }))
+    ];
+  }
+
+  function condUI(c, list, idx) {
+    const set = patch => change(s => { s.rules[list][idx] = Object.assign({}, s.rules[list][idx], patch); });
+    const field = h('select', { class: 'i', style: 'flex:1', onchange: e => set({ field: e.target.value, op: e.target.value === 'color' || e.target.value === 'weekday' ? 'in' : 'contains', value: '' }) },
+      Object.entries(COND_FIELDS).map(([k, l]) => opt(k, l, c.field === k)));
+    let valueUI;
+    if (c.field === 'color') {
+      const cur = Array.isArray(c.value) ? c.value : [];
+      valueUI = h('div', { class: 'chips', style: 'flex-wrap:wrap;margin-top:4px' }, st.prev.colors.map(x => {
+        const on = cur.includes(x.color);
+        return h('button', { class: 'chip' + (on ? ' on' : ''), onclick: () => set({ value: on ? cur.filter(v => v !== x.color) : cur.concat(x.color) }) },
+          h('span', { style: `display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;margin-inline-end:6px;background:${x.color};border:1px solid var(--line)` }),
+          x.legend.length ? 'מקרא: ' + x.legend.join(', ') : `${x.entries} רשומות`);
+      }));
+    } else if (c.field === 'weekday') {
+      const cur = Array.isArray(c.value) ? c.value : [];
+      valueUI = h('div', { class: 'chips', style: 'margin-top:4px' }, ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(dd => {
+        const on = cur.includes(dd);
+        return h('button', { class: 'chip' + (on ? ' on' : ''), onclick: () => set({ value: on ? cur.filter(v => v !== dd) : cur.concat(dd) }) }, dd);
+      }));
+    } else {
+      valueUI = h('div', { class: 'row', style: 'margin-top:4px' },
+        h('select', { class: 'i', style: 'max-width:140px', onchange: e => set({ op: e.target.value }) }, Object.entries(COND_OPS).map(([k, l]) => opt(k, l, c.op === k))),
+        h('input', { class: 'i', value: Array.isArray(c.value) ? c.value.join(', ') : (c.value || ''), placeholder: 'כמה ערכים – בפסיקים', onchange: e => set({ value: e.target.value }) }));
+    }
+    return h('div', { class: 'card', style: 'padding:8px 10px' },
+      h('div', { class: 'row' }, field, h('button', { class: 'btn ghost sm', onclick: () => change(s => { s.rules[list].splice(idx, 1); }) }, '✕')), valueUI);
+  }
+
+  function rulesUI() {
+    const R = st.spec.rules;
+    const add = (list, cond) => change(s => { s.rules[list].push(cond); });
+    return [
+      h('h3', { style: 'margin-top:14px' }, 'מה נחשב שלך?'),
+      R.include.length > 1 ? h('div', { class: 'seg', style: 'margin-bottom:6px' },
+        h('button', { class: R.match !== 'all' ? 'on' : '', onclick: () => change(s => { s.rules.match = 'any'; }) }, 'מספיק תנאי אחד'),
+        h('button', { class: R.match === 'all' ? 'on' : '', onclick: () => change(s => { s.rules.match = 'all'; }) }, 'כל התנאים יחד')) : null,
+      R.include.length ? R.include.map((c, i) => condUI(c, 'include', i)) : h('div', { class: 'muted small' }, 'אין תנאים – כל הרשומות נחשבות שלך.'),
+      h('div', { class: 'actions', style: 'margin-top:4px' },
+        h('button', { class: 'btn sm', onclick: () => add('include', { field: 'color', op: 'in', value: [] }) }, '+ לפי צבע'),
+        h('button', { class: 'btn sm', onclick: () => add('include', { field: 'any', op: 'contains', value: st.spec.write.owner || S.data.settings.senderName || '' }) }, '+ לפי טקסט'),
+        h('button', { class: 'btn sm', onclick: () => add('include', { field: 'owner', op: 'equals', value: S.data.settings.senderName || '' }) }, '+ לפי עמודת שיוך'),
+        h('button', { class: 'btn sm', onclick: () => add('include', { field: 'weekday', op: 'in', value: [] }) }, '+ לפי יום')),
+      R.exclude.length ? [h('div', { class: 'small', style: 'margin-top:8px' }, h('b', null, 'חוץ מ:')), R.exclude.map((c, i) => condUI(c, 'exclude', i))] : null,
+      h('button', { class: 'btn ghost sm', onclick: () => add('exclude', { field: 'any', op: 'contains', value: '' }) }, '+ חריגה (לא לכלול כש…)')
+    ];
+  }
+
+  function writeUI() {
+    const w = st.spec.write, isNew = !st.id;
+    if (!w.owner && st.spec.model === 'list') w.owner = S.data.settings.senderName || '';
+    return [
+      h('h3', { style: 'margin-top:14px' }, 'מה המערכת עושה עם הטבלה?' + (isNew ? ' *' : '')),
+      h('div', { class: 'seg' },
+        h('button', { class: st.writeChoice === 'read' ? 'on' : '', onclick: () => { st.writeChoice = 'read'; paint(); } }, '📖 רק לקרוא'),
+        h('button', { class: st.writeChoice === 'write' ? 'on' : '', onclick: () => { st.writeChoice = 'write'; paint(); } }, '✍️ לקרוא וגם לעדכן')),
+      st.writeChoice === 'write' ? h('div', { class: 'card small', style: 'margin-top:6px' },
+        h('div', null, 'תור שנקבע במערכת יירשם בטבלה במשבצת של התאריך והשעה – ', h('b', null, 'רק אם היא ריקה'),
+          '. ביטול או הזזה ימחקו רק תאים שעדיין מכילים בדיוק את מה שהמערכת רשמה. בכל קביעת תור אפשר לוותר על הרישום. צריך הרשאת עריכה לגיליון.'),
+        h('label', { class: 'f' }, 'צבע לסימון מה שהמערכת רושמת'),
+        h('div', { class: 'chips', style: 'flex-wrap:wrap' },
+          h('button', { class: 'chip' + (!w.color ? ' on' : ''), onclick: () => { w.color = ''; paint(); } }, 'בלי צבע'),
+          st.prev.colors.map(x => h('button', { class: 'chip' + (w.color === x.color ? ' on' : ''), onclick: () => { w.color = x.color; paint(); } },
+            h('span', { style: `display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;margin-inline-end:6px;background:${x.color}` }),
+            x.legend.length ? x.legend.join(', ') : x.color))),
+        st.spec.model === 'list' ? [h('label', { class: 'f' }, 'מה לרשום בעמודת השיוך'), h('input', { class: 'i', value: w.owner || '', oninput: e => { w.owner = e.target.value; } })] : null)
+        : st.writeChoice === 'read' ? h('div', { class: 'muted small', style: 'margin-top:6px' }, 'הטבלה לא תשתנה. אפשר להפעיל עדכון מאוחר יותר במתג שברשימת הטבלאות.') : null
+    ];
+  }
+
+  function preview() {
+    const r = st.prev, sp = st.spec;
+    const found = {}; (r.models || []).forEach(m => found[m.model] = m);
+    return [
+      h('label', { class: 'f' }, 'לשונית'), h('select', { class: 'i', onchange: e => { st.tab = e.target.value; load({}); } }, r.tabs.map(t => opt(t, t, t === st.tab))),
+      h('label', { class: 'f' }, 'מבנה הטבלה'),
+      h('div', { class: 'seg' }, Object.keys(MODEL_INFO).map(k => h('button', { class: sp.model === k ? 'on' : '', title: MODEL_INFO[k][1],
+        onclick: () => { const keep = { rules: sp.rules, write: sp.write, durationMin: sp.durationMin };
+          st.spec = Object.assign(JSON.parse(JSON.stringify(found[k] ? found[k].spec : { model: k })), keep); st.spec.model = k; paint(); reload(); } },
+        MODEL_INFO[k][0] + (found[k] ? ` (${found[k].count})` : '')))),
+      h('div', { class: 'muted small', style: 'margin-top:4px' }, MODEL_INFO[sp.model][1]),
+      r.notes ? h('div', { class: 'alert info small', style: 'margin-top:6px' }, '🤖 ' + r.notes) : null,
+      h('div', { class: 'alert ' + (r.total ? 'calm' : '') + ' small', style: 'margin-top:8px' },
+        r.total ? `נמצאו ${r.total} רשומות, ${r.mine} מהן שלך.` : 'לא נמצאו רשומות במבנה הזה – כדאי לבדוק את ההגדרות למטה או לנסות זיהוי חכם.'),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn sm', onclick: () => load({ smart: true }) }, '🤖 זיהוי חכם'),
+        h('span', { class: 'muted small' }, 'נשלח ל-Gemini רק מבנה הטבלה – תאריכים, שעות, כותרות וצבעים. שמות, ת"ז וטלפונים מוסתרים.')),
+      h('details', { open: !r.total }, h('summary', { class: 'small' }, 'הגדרת המבנה'), mappingUI(),
+        h('label', { class: 'f' }, 'משך רשומה (דקות)'), h('input', { class: 'i', type: 'number', min: 15, step: 15, value: sp.durationMin, onchange: e => change(s => { s.durationMin = Number(e.target.value) || 120; }) })),
+      rulesUI(),
+      h('h3', { style: 'margin-top:14px' }, 'קרובים'),
+      r.upcoming.length ? h('div', { class: 'card small' }, r.upcoming.slice(0, 15).map(e => h('div', { class: 'row', style: e.mine ? '' : 'opacity:.45' },
+        h('span', { style: 'min-width:86px' }, fDate(D(e.start)) + ' ' + (e.whole ? '' : fTime(D(e.start)))),
+        h('span', { class: 'grow' }, e.title + (e.detail ? ' · ' + e.detail : '') + (e.owner ? ` (${e.owner})` : '')),
+        e.color ? h('span', { style: `width:12px;height:12px;border-radius:3px;background:${e.color}` }) : null,
+        e.mine ? h('b', null, '✓') : null))) : h('div', { class: 'muted small' }, 'אין רשומות קרובות'),
+      writeUI(),
+      h('label', { class: 'f' }, 'שם לטבלה'), h('input', { class: 'i', value: st.name, oninput: e => { st.name = e.target.value; } }),
+      h('label', { class: 'row small', style: 'margin-top:10px' }, h('input', { type: 'checkbox', checked: st.toCalendar, onchange: e => { st.toCalendar = e.target.checked; } }),
+        'להוסיף את הרשומות שלי גם ליומן "MoonCRM – מטופלים"'),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.loading, onclick: async () => {
+          if (!st.writeChoice) return toast('צריך לבחור: רק לקרוא, או לקרוא וגם לעדכן', true);
+          const r2 = await mutate('saveScheduleSource', { id: st.id, name: st.name, url: st.url.trim(), tab: st.tab, spec: st.spec, toCalendar: st.toCalendar, writeChoice: st.writeChoice });
+          closeIt(); toast(`✓ נשמר · ${r2.mine} רשומות שלך מתוך ${r2.total}`);
+        } }, 'שמירה וסנכרון'),
+        h('button', { class: 'btn ghost', onclick: () => closeIt() }, 'ביטול'))
+    ];
+  }
+
+  function paint() {
+    box.replaceChildren(...[].concat(
+      h('label', { class: 'f' }, 'קישור לגיליון גוגל'),
+      h('div', { class: 'row' }, h('div', { class: 'grow' }, h('input', { class: 'i', value: st.url, placeholder: 'https:\/\/docs.google.com/spreadsheets/d/…', oninput: e => { st.url = e.target.value; } })),
+        h('button', { class: 'btn', disabled: st.loading, onclick: () => load({}) }, st.loading ? '…' : 'טעינה')),
+      st.prev && st.spec ? preview() : h('p', { class: 'muted small' }, 'הגיליון צריך להיות משותף עם החשבון שלך – צפייה מספיקה לקריאה, ועריכה נדרשת רק אם בוחרים גם לעדכן.')
+    ).flat(9).filter(Boolean));
+  }
+
+  sheet(close => { closeIt = close; paint(); return [h('h3', null, src ? 'עריכת טבלה' : 'חיבור טבלת לו״ז'), box]; });
+  if (src) load({ keepSpec: true });
+}
+
+/* ================= screen 6: course requirements ================= */
+function viewReqs() {
+  const d = S.data, cur = d.settings.currentYear;
+  const yearChips = d.reqYears.length ? h('div', { class: 'chips', style: 'margin-bottom:8px' },
+    [['', 'כל השנים']].concat(d.reqYears.map(y => [y, `שנה ${y}׳`])).map(([y, label]) =>
+      h('button', { class: 'chip' + (cur === y ? ' on' : ''), onclick: () => cur !== y && mutate('setYear', y) }, label))) : null;
+  const toolbar = h('div', { class: 'actions', style: 'margin:0 0 6px' },
+    h('button', { class: 'btn primary', onclick: () => uploadFlow() }, '⬆️ העלאת קובץ דרישות'),
+    h('button', { class: 'btn', onclick: () => courseEditor() }, '+ קורס'));
+  const groups = d.requirements;
+  if (!groups.length) return [toolbar, yearChips, h('div', { class: 'card' },
+    h('h3', null, '🎯 דרישות קליניות'),
+    h('p', null, 'כאן רואים כמה הושלם מכל דרישה בכל קורס, ואילו מטופלים יכולים להשלים את מה שחסר.'),
+    h('p', { class: 'muted' }, 'כדי להתחיל: "העלאת קובץ דרישות" – Excel, Word או PowerPoint כפי שהפקולטה שלחה, והמערכת תנתח אותו ותשאל אם משהו לא ברור. אפשר גם להוסיף קורסים ודרישות ידנית.'))];
+
+  const UNIT = { 'נקודות': ' נק׳', 'מטופלים': ' מטופלים' };
+  const reqRow = (r, course) => {
+    const unit = UNIT[r.mode] || '';
+    const hasGoal = r.required > 0, complete = hasGoal && r.done >= r.required;
+    const pct = x => hasGoal ? Math.min(100, x / r.required * 100) : 0;
+    const missing = hasGoal ? Math.max(0, r.required - r.done - r.scheduled) : 0;
+    const adjust = (delta, label) => h('button', { class: 'btn sm' + (r.mode === 'ידני' ? '' : ' ghost'), title: 'עדכון ידני',
+      onclick: () => mutate('adjustRequirement', r.key, delta) }, label);
+    const cand = r.candidates.slice(0, 12);
+    return h('div', { class: 'req-row' },
+      h('div', { class: 'row' },
+        h('b', { class: 'grow tap', title: 'עריכה', onclick: () => requirementEditor(course, r) }, r.type,
+          cur || !r.year ? null : h('span', { class: 'muted small' }, ` · שנה ${r.year}׳`), h('span', { class: 'muted small' }, ' ✎')),
+        h('span', { class: 'small' }, hasGoal ? `${r.done}/${r.required}${unit}` : `${r.done}${unit}`),
+        complete ? h('span', { class: 'badge ok' }, 'הושלם ✓') : !hasGoal ? h('span', { class: 'badge gray' }, 'ללא יעד')
+          : r.scheduled ? h('span', { class: 'badge' }, `${r.scheduled}${unit} נקבעו`) : null),
+      hasGoal ? h('div', { class: 'bar', style: 'margin:6px 0' }, h('div', { class: 'd', style: `width:${pct(r.done)}%` }),
+        h('div', { class: 's', style: `width:${pct(Math.min(r.scheduled, Math.max(0, r.required - r.done)))}%` })) : null,
+      r.codes ? h('div', { class: 'small muted' }, 'קודים: ' + r.codes) : null,
+      r.note ? h('div', { class: 'small muted' }, r.note) : null,
+      h('div', { class: 'row small', style: 'margin-top:4px' },
+        h('span', { class: 'muted grow' },
+          r.mode === 'ידני' ? 'ספירה ידנית' : r.manual ? `כולל ${r.manual}${unit} שנספרו ידנית` : '',
+          missing > 0 && r.mode !== 'ידני' ? (r.manual ? ' · ' : '') + `חסרים ${missing}${unit}` + (cand.length ? ':' : ' · אין כרגע מטופלים מתאימים') : ''),
+        adjust(-1, '−'), adjust(1, '+')),
+      missing > 0 && cand.length ? h('div', { class: 'chips', style: 'margin-top:6px' },
+        cand.map(x => h('button', { class: 'chip', onclick: () => openPatient(x.patientId) },
+          x.name + (r.mode === 'נקודות' ? ` · ${x.type} (+${x.points})` : x.sameCourse ? '' : ` (${x.course || 'ללא קורס'})`)))) : null);
+  };
+
+  return [toolbar, yearChips, groups.map(c => {
+    const goals = c.rows.filter(r => r.required > 0), done = goals.filter(r => r.done >= r.required).length;
+    return [
+      h('h2', null, h('span', { class: 'grow' }, c.course), goals.length ? h('span', { class: 'count' }, `${done}/${goals.length} הושלמו`) : null,
+        h('button', { class: 'btn ghost sm', title: 'הוספת דרישה', onclick: () => requirementEditor(c.course) }, '+ דרישה'),
+        h('button', { class: 'btn ghost sm', title: 'מחיקת הקורס', onclick: () => deleteCourseDialog(c) }, '🗑')),
+      c.noDetails
+        ? h('div', { class: 'card muted' }, 'ℹ️ לא קיימים פירוטי דרישות לקורס הזה' + (c.note && c.note !== 'לא קיימים פירוטי דרישות' ? ` – ${c.note}` : '') + '.')
+        : h('div', { class: 'card' }, c.rows.map(r => reqRow(r, c.course)))
+    ];
+  })];
+}
+
+const MODE_HELP = {
+  'טיפולים': 'סופר טיפולים שבוצעו מהסוג הזה (מכל קורס)',
+  'מטופלים': 'סופר מטופלים שונים עם טיפול כזה',
+  'נקודות': 'סוכם ניקוד לפי הלשונית "ניקוד טיפולים" (טיפולים של הקורס הזה)',
+  'ידני': 'לא קשור למטופלים – סופרים בכפתורי − / +'
+};
+
+function requirementEditor(course, r) {
+  const d = S.data, cur = d.settings.currentYear;
+  const name = h('input', { class: 'i', value: r ? r.type : '', list: 'reqNames', placeholder: 'למשל: עקירה / בקשות משוב' });
+  const year = h('input', { class: 'i', value: r ? r.year : cur, list: 'reqYearsList', placeholder: 'ה / ו (ריק = כל השנים)' });
+  const count = h('input', { class: 'i', type: 'number', min: 0, value: r && r.required ? r.required : '', placeholder: 'ריק = ללא יעד' });
+  const mode = h('select', { class: 'i' }, Object.keys(MODE_HELP).map(m => opt(m, m + ' – ' + MODE_HELP[m], (r ? r.mode : 'טיפולים') === m)));
+  const codes = h('input', { class: 'i', value: r ? r.codes : '' });
+  const note = h('input', { class: 'i', value: r ? r.note : '' });
+  sheet(close => [
+    h('h3', null, r ? 'עריכת דרישה' : `דרישה חדשה – ${course}`),
+    h('label', { class: 'f' }, 'שם הדרישה (כמו שם סוג הטיפול)'), name,
+    h('datalist', { id: 'reqNames' }, (d.treatmentNames || []).map(n => opt(n))),
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'כמות נדרשת'), count),
+      h('div', null, h('label', { class: 'f' }, 'שנה'), year, h('datalist', { id: 'reqYearsList' }, d.reqYears.map(y => opt(y))))),
+    h('label', { class: 'f' }, 'אופן ספירה'), mode,
+    h('label', { class: 'f' }, 'קודים'), codes,
+    h('label', { class: 'f' }, 'הערות'), note,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        await mutate('saveRequirement', { year: year.value, course, type: name.value, count: count.value, mode: mode.value, codes: codes.value, note: note.value }, r ? r.key : '');
+        close(); toast('נשמר');
+      } }, 'שמירה'),
+      r ? h('button', { class: 'btn danger', onclick: async () => {
+        if (!await ask(`למחוק את הדרישה "${r.type}"? הטיפולים עצמם לא יימחקו.`, 'מחיקה')) return;
+        await mutate('deleteRequirement', r.key); close();
+      } }, 'מחיקה') : null,
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+function courseEditor() {
+  const d = S.data;
+  const name = h('input', { class: 'i', placeholder: 'שם הקורס' });
+  const year = h('input', { class: 'i', value: d.settings.currentYear, list: 'courseYears', placeholder: 'ה / ו (ריק = כל השנים)' });
+  sheet(close => [
+    h('h3', null, 'קורס חדש'),
+    h('label', { class: 'f' }, 'שם'), name,
+    h('label', { class: 'f' }, 'שנה'), year, h('datalist', { id: 'courseYears' }, d.reqYears.map(y => opt(y))),
+    h('div', { class: 'muted small', style: 'margin-top:8px' }, 'קורס בלי דרישות יוצג עם הערה שלא קיימים פירוטי דרישות. אפשר להוסיף דרישות ידנית או להעלות קובץ.'),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => { await mutate('addCourse', { name: name.value, year: year.value }); close(); toast('הקורס נוסף'); } }, 'הוספה'),
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+  setTimeout(() => name.focus(), 50);
+}
+
+async function deleteCourseDialog(c) {
+  const cur = S.data.settings.currentYear;
+  const where = cur ? `בשנה ${cur}׳` : 'בכל השנים';
+  if (!await ask(`למחוק את הקורס "${c.course}" ${where}, כולל ${c.rows.length} הדרישות שלו?\nהטיפולים שכבר נרשמו למטופלים לא יימחקו.`, 'מחיקה')) return;
+  const r = await mutate('deleteCourse', { name: c.course, year: cur });
+  toast(`הקורס נמחק (${r.removed} דרישות)`);
+}
+
+/* ---------- upload: any requirements document → draft → questions → import ---------- */
+
+function readFileForUpload(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('קריאת הקובץ נכשלה'));
+    if (/\.csv$/i.test(file.name)) {
+      // CSV saved by Excel is often Windows-1255, not UTF-8 – decode whichever fits.
+      fr.onload = () => {
+        let text;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(fr.result); }
+        catch (e) { text = new TextDecoder('windows-1255').decode(fr.result); }
+        resolve({ name: file.name, csv: text });
+      };
+      fr.readAsArrayBuffer(file);
+    } else {
+      fr.onload = () => resolve({ name: file.name, mime: file.type, base64: String(fr.result).split(',')[1] || '' });
+      fr.readAsDataURL(file);
+    }
+  });
+}
+
+function aiKeyDialog(onDone) {
+  const key = h('input', { class: 'i', placeholder: 'AIza…', autocomplete: 'off' });
+  sheet(close => [
+    h('h3', null, '🤖 חיבור Gemini לניתוח מסמכים'),
+    h('p', null, 'כדי לנתח קובצי דרישות (Excel, Word, PowerPoint או טקסט חופשי), המערכת נעזרת ב-Gemini של גוגל. צריך מפתח חינמי, פעם אחת (כ-2 דקות):'),
+    h('ol', { style: 'padding-inline-start:20px;margin:6px 0' },
+      h('li', null, 'להיכנס ל-', h('a', { href: 'https:\/\/aistudio.google.com/apikey', target: '_blank' }, 'aistudio.google.com/apikey ↗'), ' עם חשבון הגוגל'),
+      h('li', null, 'ללחוץ "Create API key" (אם נשאלים על פרויקט – "Create API key in new project")'),
+      h('li', null, 'להעתיק את המפתח (מתחיל ב-AIza…) ולהדביק כאן')),
+    h('p', { class: 'muted small' }, 'המפתח נשמר רק בחשבון שלך. ל-Gemini נשלח רק תוכן הקובץ ושמות הקורסים והטיפולים – אף פעם לא פרטי מטופלים.'),
+    key,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        busy(true);
+        try { await call('setGeminiKey', key.value); await load('bootstrap'); close(); toast('✓ Gemini מחובר'); onDone && onDone(); }
+        catch (e) { toast(e.message, true); }
+        finally { busy(false); }
+      } }, 'שמירה'),
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+function uploadFlow() {
+  const st = { file: null, res: null, answers: {}, mode: 'merge', working: false };
+  const box = h('div');
+  const input = h('input', { type: 'file', class: 'i', accept: '.xlsx,.xls,.csv,.docx,.doc,.pptx,.ppt' });
+  let closeSheet = () => {};
+
+  const freeText = h('textarea', { class: 'i', placeholder: 'למשל: בשנה ו׳ בשיקום צריך 6 כתרים ו-30 שחזורים. בכירורגיה 4 עקירות ו-10 אנמנזות (סופרים מטופלים). אורתודונטיה – אין עדיין פירוט.' });
+  const analyzeText = async () => {
+    if (!freeText.value.trim()) return toast(G('כתוב', 'כתבי', 'צריך לכתוב') + ' את הדרישות', true);
+    st.working = true; paint(); busy(true);
+    try {
+      const r = await call('analyzeRequirementsText', freeText.value);
+      if (r.needsKey) { st.working = false; paint(); return aiKeyDialog(analyzeText); }
+      st.res = r; st.answers = {};
+    } catch (e) { toast(e.message, true); }
+    finally { st.working = false; busy(false); paint(); }
+  };
+  const linkIn = h('input', { class: 'i', placeholder: 'קישור לגיליון בדרייב – docs.google.com/spreadsheets/…' });
+  const runAnalyze = async (getFile, again) => {
+    st.working = true; paint(); busy(true);
+    try {
+      const r = await call('analyzeRequirementsFile', await getFile());
+      if (r.needsKey) { st.working = false; paint(); return aiKeyDialog(again); }
+      st.res = r; st.answers = {};
+    } catch (e) { toast(e.message, true); }
+    finally { st.working = false; busy(false); paint(); }
+  };
+  const analyze = () => input.files[0] ? runAnalyze(() => readFileForUpload(input.files[0]), analyze) : toast(G('בחר קובץ', 'בחרי קובץ', 'צריך לבחור קובץ'), true);
+  const analyzeLink = () => linkIn.value.trim() ? runAnalyze(() => ({ url: linkIn.value.trim() }), analyzeLink) : toast('צריך להדביק קישור לגיליון', true);
+  const refine = async () => {
+    const qa = st.res.questions.map(q => ({ question: q.question, answer: st.answers[q.id] || '' }));
+    st.working = true; paint(); busy(true);
+    try {
+      const r = await call('refineRequirements', st.res.source, { requirements: st.res.requirements, points: st.res.points }, qa, (st.res.round || 1) + 1);
+      st.res = r; st.answers = {};
+    } catch (e) { toast(e.message, true); }
+    finally { st.working = false; busy(false); paint(); }
+  };
+  const doImport = async () => {
+    const r = await mutate('importRequirements', { requirements: st.res.requirements, points: st.res.points }, st.mode);
+    closeSheet(); toast(`✓ יובאו ${r.requirements} דרישות` + (r.points ? ` ו-${r.points} שורות ניקוד` : ''));
+  };
+
+  function preview() {
+    const r = st.res, byCourse = {};
+    r.requirements.forEach(x => { const k = (x.year ? `שנה ${x.year}׳ · ` : '') + x.course; (byCourse[k] = byCourse[k] || []).push(x); });
+    const UNIT = { 'נקודות': ' נק׳', 'מטופלים': ' מטופלים' };
+    const unanswered = r.questions.filter(q => !st.answers[q.id]).length;
+    return [
+      h('div', { class: 'alert ' + (r.method === 'ai' ? 'info' : 'calm') + ' small' },
+        r.method === 'ai' ? '🤖 הקובץ נותח עם Gemini' + (r.round > 1 ? ` (סבב ${r.round})` : '') : r.partial ? '⚠️ רק חלק מהקובץ זוהה בלי AI' : '✓ הקובץ בפורמט טבלת הדרישות – יובא כמו שהוא',
+        r.partial ? h('div', { style: 'margin-top:6px' }, h('button', { class: 'btn sm primary', onclick: () => { closeSheet(); aiKeyDialog(uploadFlow); } }, '🤖 חיבור Gemini לניתוח מלא')) : null,
+        r.summary ? h('div', { style: 'margin-top:4px' }, r.summary) : null,
+        r.truncated ? h('div', null, '⚠️ הקובץ ארוך מאוד – נותח רק החלק הראשון שלו') : null),
+      r.warnings && r.warnings.length ? h('div', { class: 'alert small' }, r.warnings.map(w => h('div', null, '⚠️ ' + w))) : null,
+      r.questions.length ? [
+        h('h3', { style: 'margin-top:12px' }, `❓ ${r.questions.length} שאלות לפני הייבוא`),
+        r.questions.map(q => {
+          const free = h('input', { class: 'i', placeholder: 'תשובה אחרת…', value: q.options.includes(st.answers[q.id]) ? '' : (st.answers[q.id] || ''),
+            oninput: e => { st.answers[q.id] = e.target.value; } });
+          return h('div', { class: 'card' },
+            h('div', { class: 'name' }, q.question),
+            q.why ? h('div', { class: 'muted small' }, q.why) : null,
+            h('div', { class: 'chips', style: 'flex-wrap:wrap;margin:6px 0' }, q.options.map(o =>
+              h('button', { class: 'chip' + (st.answers[q.id] === o ? ' on' : ''), onclick: () => { st.answers[q.id] = o; paint(); } }, o))),
+            free);
+        })
+      ] : null,
+      h('h3', { style: 'margin-top:12px' }, `מה ייובא (${r.requirements.filter(x => x.type).length} דרישות)`),
+      Object.keys(byCourse).map(k => h('div', { class: 'card small' },
+        h('b', null, k),
+        byCourse[k].map(x => x.type
+          ? h('div', { class: 'row' }, h('span', { class: 'grow' }, x.type), h('span', { class: 'muted' }, (x.count === '' ? 'ללא יעד' : x.count + (UNIT[x.mode] || '')) + ' · ' + (x.mode || 'טיפולים')))
+          : h('div', { class: 'muted' }, 'לא קיימים פירוטי דרישות')))),
+      r.points.length ? h('div', { class: 'card small' }, h('b', null, `טבלת ניקוד: ${r.points.length} טיפולים`),
+        h('div', { class: 'muted' }, Array.from(new Set(r.points.map(p => p.course || 'כל הקורסים'))).join(', '))) : null,
+      h('div', { class: 'seg', style: 'margin-top:10px' },
+        h('button', { class: st.mode === 'merge' ? 'on' : '', onclick: () => { st.mode = 'merge'; paint(); } }, 'עדכון הקורסים שבקובץ'),
+        h('button', { class: st.mode === 'replace' ? 'on' : '', onclick: () => { st.mode = 'replace'; paint(); } }, 'החלפת כל הדרישות')),
+      h('div', { class: 'muted small', style: 'margin-top:4px' }, st.mode === 'merge'
+        ? 'קורסים שלא מופיעים בקובץ נשארים כמו שהם. ספירות ידניות (− / +) נשמרות.'
+        : 'כל הדרישות הקיימות יוחלפו בתוכן הקובץ. ספירות ידניות של דרישות זהות נשמרות.'),
+      h('div', { class: 'actions' },
+        r.questions.length ? h('button', { class: 'btn primary', disabled: st.working, onclick: refine }, unanswered ? `שליחת התשובות (${unanswered} בלי תשובה)` : 'שליחת התשובות') : null,
+        h('button', { class: 'btn' + (r.questions.length ? '' : ' primary'), disabled: st.working || !r.requirements.length && !r.points.length, onclick: doImport },
+          r.questions.length ? 'ייבוא בלי לענות' : '✓ ייבוא'),
+        h('button', { class: 'btn ghost', onclick: () => { st.res = null; paint(); } }, 'קובץ אחר'))
+    ];
+  }
+
+  function paint() {
+    box.replaceChildren(...[].concat(st.res ? preview() : [
+      h('p', null, 'אפשר להעלות את קובץ הדרישות כפי שהפקולטה שלחה (Excel, Word או PowerPoint), או לכתוב אותן במילים. המערכת מנתחת, שואלת אם משהו לא ברור, והדרישות נשמרות רק אחרי אישור.'),
+      input,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.working, onclick: analyze }, st.working ? 'מנתח… (עד 2 דקות)' : 'ניתוח הקובץ')),
+      h('div', { class: 'muted', style: 'text-align:center;margin:10px 0' }, '— או קובץ שכבר נמצא בדרייב —'),
+      linkIn,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.working, onclick: analyzeLink }, st.working ? 'מנתח…' : 'ניתוח מהדרייב')),
+      h('div', { class: 'muted', style: 'text-align:center;margin:10px 0' }, '— או —'),
+      h('label', { class: 'f' }, G('כתוב', 'כתבי', 'אפשר לכתוב') + ' את הדרישות במילים שלך'),
+      freeText,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.working, onclick: analyzeText }, st.working ? 'מנתח…' : 'ניתוח הטקסט'),
+        h('button', { class: 'btn ghost', onclick: () => closeSheet() }, 'ביטול')),
+      S.data.settings.hasAiKey ? null : h('div', { class: 'alert info small', style: 'margin-top:8px' }, 'כדי שכל קובץ ינותח עם AI צריך לחבר Gemini (פעם אחת, חינם). ',
+        h('button', { class: 'btn sm', onclick: () => aiKeyDialog() }, 'חיבור'))
+    ]).flat(9).filter(Boolean));
+  }
+
+  sheet(close => { closeSheet = close; paint(); return [h('h3', null, '⬆️ העלאת קובץ דרישות'), box]; });
+}
+
+/* ================= screen 3: templates ================= */
+function viewTemplates() {
+  const d = S.data;
+  return [
+    h('div', { class: 'row', style: 'margin-bottom:6px' },
+      h('p', { class: 'muted grow', style: 'margin:0' }, 'הודעות מוכנות – מוצגות כפי שיישלחו (לדוגמה, למטופלת "דנה"). לחיצה פותחת עריכה: שם מכניסים פרטים מהמערכת (שם, תאריך, טיפול…) בלחיצה על הכפתורים.'),
+      h('button', { class: 'btn primary', onclick: () => templateEditor() }, '+ חדש')),
+    d.templates.map(t => h('div', { class: 'card tap', onclick: () => templateEditor(t) },
+      h('div', { class: 'row' }, h('span', { class: 'name grow' }, t.name),
+        h('span', { class: 'badge ' + (t.trigger === 'ידני' ? 'gray' : '') }, t.trigger === 'ידני' ? 'ידני' : '⚡ ' + t.trigger)),
+      h('div', { class: 'muted ellipsis' }, sampleMessage(t.text))))
+  ];
+}
+
+/** A template as a sample patient would receive it (same rules as the server's renderTemplate_). */
+function sampleMessage(text) {
+  const st = S.data.settings, ty = S.data.types[0] || {};
+  const ctx = { 'שם': 'דנה', 'שם_מלא': 'דנה לוי', 'יום': 'ראשון', 'תאריך': '18.10', 'שעה': '09:30', 'מתי': 'בעוד שבוע', 'טיפול': ty.name || 'בדיקה',
+    'קורס': S.data.courses[0] || '', 'מיקום': st.clinicLocation || 'במרפאה', 'הכנה': ty.prep || '', 'טופס': 'טופס הסכמה', 'תאריך_ביקורת': '18.4.2027',
+    'חתימה': st.senderName || '', 'שולחת': st.senderName || '' };
+  const pick = (parts, g) => { const m = parts[0], f = parts.length > 1 ? parts[1] : m, pl = parts.length > 2 ? parts[2] : m;
+    return g === 'זכר' ? m : g === 'נקבה' ? f : g === 'רבים' ? pl : (m === f ? m : m + '/' + f); };
+  return String(text || '').split('\n').map(line => line
+    .replace(/\[([^\[\]]*\|[^\[\]]*)\]/g, (_, b) => pick(b.split('|'), st.userGender))
+    .replace(/\{([^{}]*\|[^{}]*)\}/g, (_, b) => pick(b.split('|'), 'נקבה'))
+    .replace(/\{([^{}|]+)\}/g, (w, n) => Object.prototype.hasOwnProperty.call(ctx, n.trim()) ? ctx[n.trim()] : w))
+    .filter(l => l.trim()).join(' ');
+}
+
+function templateEditor(t) {
+  t = t || { key: '', name: '', trigger: 'ידני', text: '' };
+  const meta = S.data.meta;
+  const ta = h('textarea', { class: 'i', style: 'min-height:150px', value: t.text });
+  const name = h('input', { class: 'i', value: t.name, placeholder: 'למשל: תזכורת יום לפני' });
+  const subj = h('input', { class: 'i', value: t.subject || '', placeholder: 'ריק = שם התבנית. אפשר משתנים, למשל: תזכורת לתור ב{תאריך}' });
+  const trig = h('select', { class: 'i' }, meta.triggers.map(x => opt(x, x === 'ידני' ? 'ידני (שולחים לפי הצורך)' : '⚡ אוטומטי: ' + x, t.trigger === x)));
+  const prev = h('div', { class: 'preview' }, '…');
+  const warn = h('div', { class: 'alert hidden' });
+  let mode = 'f', last = null, timer;
+  const seg = h('div', { class: 'seg', style: 'margin:6px 0' });
+  const paint = () => {
+    seg.replaceChildren(...[['m', 'זכר'], ['f', 'נקבה'], ['pl', 'רבים']].map(([k, l]) => h('button', { class: mode === k ? 'on' : '', onclick: () => { mode = k; paint(); } }, l)));
+    prev.textContent = last ? last[mode] : '…';
+    warn.classList.toggle('hidden', !(last && last.unknown.length));
+    if (last && last.unknown.length) warn.textContent = 'משתנים לא מוכרים: ' + last.unknown.map(u => '{' + u + '}').join(' ');
+  };
+  const refresh = () => { clearTimeout(timer); timer = setTimeout(() => call('previewTemplate', ta.value).then(r => { last = r; paint(); }).catch(() => {}), 400); };
+  ta.addEventListener('input', refresh);
+  const insert = s => {
+    const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
+    ta.value = ta.value.slice(0, a) + s + ta.value.slice(b);
+    ta.focus(); ta.setSelectionRange(a + s.length, a + s.length); refresh();
+  };
+  sheet(close => [
+    h('h3', null, t.key ? 'עריכת תבנית' : 'תבנית חדשה'),
+    h('label', { class: 'f' }, 'שם'), name,
+    h('label', { class: 'f' }, 'מתי נשלח'), trig,
+    h('label', { class: 'f' }, 'נושא (כשנשלח במייל)'), subj,
+    h('label', { class: 'f' }, 'טקסט'), ta,
+    h('div', { class: 'varchips' },
+      meta.vars.map(([v, desc]) => h('button', { title: desc, onclick: () => insert('{' + v + '}') }, '{' + v + '}')),
+      h('button', { title: 'הטיה לפי המטופל/ת: זכר | נקבה | רבים', onclick: () => insert('{זכר|נקבה|רבים}') }, '⚥ מטופל/ת'),
+      h('button', { title: 'הטיה לפי השולח/ת (את/ה): זכר | נקבה', onclick: () => insert('[זכר|נקבה]') }, '⚥ שלי')),
+    h('div', { class: 'muted small' }, 'הטיה למטופל/ת: {תאשר|תאשרי|תאשרו} – לפי לשון הפנייה של המטופל/ת. הטיה שלך: [מזכיר|מזכירה] – לפי ההגדרה "איך לפנות אליך".'),
+    h('label', { class: 'f' }, 'תצוגה מקדימה (דנה לוי, לדוגמה)'), seg, prev, warn,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        const r = await mutate('saveTemplate', { key: t.key, name: name.value, trigger: trig.value, subject: subj.value, text: ta.value });
+        close(); toast('נשמר' + (r && r.refreshed ? ` · עודכנו ${r.refreshed} אירועים ביומן` : ''));
+      } }, 'שמירה'),
+      t.key ? h('button', { class: 'btn danger', onclick: async () => {
+        if (!await ask(`למחוק את "${t.name}"?`, 'מחיקה')) return;
+        await mutate('deleteTemplate', t.key); close();
+      } }, 'מחיקה') : null,
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+  paint(); refresh();
+}
+
+/* ================= screen 5: patient card ================= */
+function viewPatient() {
+  const p = IDX.p[S.patientId];
+  if (!p) return [h('button', { class: 'back', onclick: () => go(S.backTab || 'today') }, '→ חזרה'), h('div', { class: 'card empty' }, 'המטופל/ת לא נמצא/ה')];
+  const ts = IDX.tByP[p.id] || [], forms = IDX.fByP[p.id] || [], d = S.data;
+  const now = new Date();
+  const upcoming = ts.filter(t => t.status === 'נקבע').sort((a, b) => D(a.start) - D(b.start));
+  const needed = ts.filter(t => t.status === 'נדרש');
+  const done = ts.filter(t => t.status === 'בוצע').sort((a, b) => D(b.doneAt || b.start) - D(a.doneAt || a.start));
+  const other = ts.filter(t => t.status === 'בוטל' || t.status === 'לא הגיע');
+  const isClosed = closed(p);
+  // Rows of shared tables that carry this patient's name (full name, or a first name no other patient has)
+  const first = n => String(n || '').trim().split(/\s+/)[0];
+  const sameFirst = d.patients.filter(x => x.id !== p.id && first(x.name) === first(p.name)).length;
+  const srcName = {}; (d.sources || []).forEach(x => srcName[x.id] = x.name);
+  const tableItems = (d.external || []).filter(e => !e.fromCrm && e.mine &&
+    (String(e.title).trim() === String(p.name).trim() || (!sameFirst && first(e.title) === first(p.name)))).sort((a, b) => D(a.start) - D(b.start));
+
+  const medBox = h('div', { class: 'alert info small' }, 'בודק בטופס הקבלה…');
+  S.med = S.med || {};
+  (S.med[p.id] ? Promise.resolve(S.med[p.id]) : call('medical', p.id).then(r => (S.med[p.id] = r))).then(r => {
+    if (!r.found) { medBox.className = 'alert info small'; medBox.textContent = 'לא נמצאה תגובה בטופס הקבלה עבור הטלפון הזה.'; return; }
+    medBox.replaceChildren();
+    if (r.alerts.length) {
+      medBox.className = 'alert';
+      medBox.append(h('b', null, '⚠️ מהטופס הרפואי:'), h('ul', { style: 'margin:4px 0;padding-inline-start:18px' }, r.alerts.map(a => h('li', null, `${a.q}: ${a.a}`))));
+    } else { medBox.className = 'alert calm small'; medBox.append('✓ אין ממצאים רפואיים בטופס. '); }
+    medBox.append(h('a', { href: r.url, target: '_blank' }, 'לתגובה המלאה ↗'));
+  }).catch(() => { medBox.textContent = ''; medBox.className = 'hidden'; });
+
+  const tItem = t => {
+    const s = D(t.start), dn = D(t.doneAt) || s;
+    const when = t.status === 'בוצע' ? dn : s;
+    const acts = [];
+    if (t.status === 'נקבע') {
+      acts.push(h('button', { class: 'btn sm', onclick: async () => {
+        const r = await mutate('saveTreatment', { id: t.id, status: 'בוצע' });
+        const atpl = tplByTrigger('אחרי טיפול');
+        const msg = '✓ סומן כבוצע' + (r && r.recallSet ? `\nביקורת נקבעה ל-${fDateY(D(r.recallSet))} ונוספה ליומן` : '');
+        if (atpl && await ask(msg + '\n\nלשלוח הודעת "' + atpl.name + '"?', '💬 כן, לניסוח', 'לא עכשיו')) composer(p.id, { templateKey: atpl.key, treatmentId: t.id });
+        else if (!atpl) toast(msg);
+      } }, '✓ בוצע'));
+      acts.push(h('button', { class: 'btn sm', onclick: () => treatmentEditor(p, t) }, 'הזזה/עריכה'));
+      acts.push(h('button', { class: 'btn sm', onclick: () => mutate('saveTreatment', { id: t.id, status: 'לא הגיע' }) }, 'לא הגיע/ה'));
+      acts.push(h('button', { class: 'btn sm danger', onclick: async () => await ask('לבטל את התור? האירוע יימחק מהיומן' + ((S.data.sources || []).some(x => x.write) ? ' ומהטבלה המשותפת (אם נרשם בה).' : '.'), 'כן, לבטל את התור', 'לא, להשאיר') && mutate('saveTreatment', { id: t.id, status: 'בוטל' }) }, 'ביטול'));
+    } else if (t.status === 'נדרש') {
+      acts.push(h('button', { class: 'btn sm primary', onclick: () => treatmentEditor(p, t, { schedule: true }) }, '📅 קביעת תור'));
+      acts.push(h('button', { class: 'btn sm', onclick: () => treatmentEditor(p, t) }, 'עריכה'));
+    } else {
+      acts.push(h('button', { class: 'btn sm', onclick: () => treatmentEditor(p, t) }, 'עריכה'));
+    }
+    return h('div', { class: 't-item' },
+      h('div', { class: 't-date' }, when ? [h('b', null, fDate(when)), t.status === 'נקבע' ? fTime(when) : String(when.getFullYear())] : '—'),
+      h('div', { class: 'grow' },
+        h('div', { class: 'row' }, h('b', { class: 'grow' }, t.type), tBadge(t.status)),
+        h('div', { class: 'muted small' }, [t.tooth && 'שן ' + t.tooth, t.code, t.course, t.status === 'נקבע' && s ? rel(s) : null, t.notes].filter(Boolean).join(' · ')),
+        isClosed ? null : h('div', { class: 'actions', style: 'margin-top:6px' }, acts)));
+  };
+  const tSection = (title, list) => list.length ? [h('div', { class: 'muted small', style: 'margin-top:8px' }, title), list.map(tItem)] : null;
+
+  // Details form
+  const f = {};
+  const field = (key, label, el) => { f[key] = el; return [h('label', { class: 'f' }, label), el]; };
+  const myCourses = String(p.courses || '').split(/,\s*/).filter(Boolean);
+  const courseSel = new Set(myCourses);
+  const courseChips = h('div', { class: 'chips', style: 'flex-wrap:wrap' });
+  const paintCourses = () => courseChips.replaceChildren(...Array.from(new Set(d.courses.concat(myCourses))).map(c =>
+    h('button', { class: 'chip' + (courseSel.has(c) ? ' on' : ''), onclick: () => { courseSel.has(c) ? courseSel.delete(c) : courseSel.add(c); paintCourses(); } }, c)));
+  paintCourses();
+  let gender = p.gender || '';
+  const gSeg = h('div', { class: 'seg' });
+  const paintG = () => gSeg.replaceChildren(...d.meta.genders.map(g => h('button', { class: gender === g ? 'on' : '', onclick: () => { gender = g; paintG(); } }, g)));
+  paintG();
+
+  const save = async () => {
+    const patch = { id: p.id, gender, courses: Array.from(courseSel).join(', ') };
+    Object.keys(f).forEach(k => {
+      if (k.startsWith('x:')) { patch.extra = patch.extra || {}; patch.extra[k.slice(2)] = f[k].value; } else patch[k] = f[k].value;
+    });
+    await mutate('savePatient', patch); toast('נשמר');
+  };
+
+  const recallIn = h('input', { class: 'i', type: 'date', value: p.recallDate ? String(p.recallDate).slice(0, 10) : '' });
+  const newForm = h('input', { class: 'i', placeholder: 'שם הטופס', list: 'formNames' });
+  const knownForms = Array.from(new Set(d.requiredForms.map(r => r.form).concat(d.forms.map(x => x.form)))).filter(Boolean);
+
+  return [
+    h('button', { class: 'back', onclick: () => go(S.backTab || 'today') }, '→ חזרה'),
+    h('div', { class: 'hero' },
+      h('div', { class: 'grow' }, h('h2', null, p.name),
+        h('div', { class: 'row wrap', style: 'margin-top:4px' }, statusBadge(p.status), myCourses.map(c => h('span', { class: 'badge gray' }, c)),
+          p.refilled === 'כן' ? h('span', { class: 'badge new' }, 'מילא/ה טופס שוב') : null)),
+      p.phone ? h('a', { class: 'btn', href: 'tel:' + p.phone }, '📞') : null),
+    h('div', { class: 'row wrap small', style: 'margin:-4px 0 10px;gap:14px' },
+      p.phone ? h('a', { href: 'tel:' + p.phone }, '📞 ' + fPhone(p.phone)) : h('span', { class: 'muted' }, 'אין טלפון – אפשר להוסיף בפרטים למטה'),
+      p.email ? h('a', { href: 'mailto:' + p.email }, '📧 ' + p.email) : null,
+      p.contactPref ? h('span', { class: 'muted' }, ({ 'זכר': 'מעדיף', 'נקבה': 'מעדיפה' }[p.gender] || 'מעדיפים') + ': ' + p.contactPref) : null),
+
+    p.status === 'פנייה חדשה' ? h('div', { class: 'alert info' },
+      h('b', null, '🆕 פנייה חדשה מהטופס'), h('div', null, G('בחר לשון פנייה (חובה) וקורס בפרטים למטה, שמור ואשר.', 'בחרי לשון פנייה (חובה) וקורס בפרטים למטה, שמרי ואשרי.', 'יש לבחור לשון פנייה (חובה) וקורס בפרטים למטה, לשמור, ואז לאשר.')),
+      p.reason ? h('div', { style: 'margin-top:4px' }, 'סיבת הפנייה: ' + p.reason) : null,
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary sm', onclick: () => activate(p) }, '✓ אישור כמטופל/ת פעיל/ה'))) : null,
+    isClosed ? h('div', { class: 'alert info' }, `הטיפול הסתיים${p.closedAt ? ' ב-' + fDateY(D(p.closedAt)) : ''}. לא יוצגו תזכורות.`) : null,
+    medBox,
+
+    isClosed ? null : h('div', { class: 'actions', style: 'margin:0 0 6px' },
+      h('button', { class: 'btn wa', onclick: () => composer(p.id, {}) }, '💬 הודעה'),
+      h('button', { class: 'btn primary', onclick: () => treatmentEditor(p, null, { schedule: true }) }, '📅 קביעת תור'),
+      h('button', { class: 'btn', onclick: () => treatmentEditor(p, null) }, '+ טיפול נדרש')),
+
+    h('h2', null, '🦷 טיפולים', h('span', { class: 'count' }, ts.length)),
+    h('div', { class: 'card' }, ts.length ? [tSection('קרובים', upcoming), tSection('נדרשים – עוד לא נקבעו', needed), tSection('בוצעו', done), tSection('בוטלו / לא הגיע', other)]
+      : h('div', { class: 'empty' }, 'עוד אין טיפולים')),
+
+    tableItems.length ? [
+      h('h2', null, '📋 בטבלה המשותפת', h('span', { class: 'count' }, tableItems.length)),
+      h('div', { class: 'card' }, tableItems.map(e => {
+        const s = D(e.start), future = s && s > now;
+        return h('div', { class: 't-item' },
+          h('div', { class: 't-date' }, h('b', null, fDate(s)), e.whole ? 'כל היום' : fTime(s)),
+          h('div', { class: 'grow' },
+            h('div', null, h('b', null, e.detail || 'תור'), e.note ? h('span', { class: 'muted small' }, ' · ' + e.note) : null),
+            h('div', { class: 'muted small' }, '📋 ' + (srcName[e.sourceId] || 'טבלה') + (future ? ' · ' + rel(s) : '')),
+            future && !isClosed ? h('div', { class: 'actions', style: 'margin-top:6px' }, h('button', { class: 'btn sm', onclick: () =>
+              treatmentEditor(p, null, { schedule: true, fromTable: true, prefill: { type: e.detail || '', start: e.start, status: 'נקבע' } }) }, '📅 קביעה גם באפליקציה')) : null));
+      })),
+      h('div', { class: 'muted small', style: 'margin:-4px 0 8px' }, 'תורים שרשומים על שם המטופל/ת בטבלת התורנויות. "קביעה גם באפליקציה" מוסיפה תזכורות ומונה לדרישות.')
+    ] : null,
+
+    h('h2', null, '🔔 ביקורת'),
+    h('div', { class: 'card' },
+      h('div', { class: 'row' }, h('div', { class: 'grow' }, recallIn),
+        h('button', { class: 'btn primary sm', onclick: () => mutate('setRecall', p.id, recallIn.value).then(() => toast(recallIn.value ? 'הביקורת נקבעה ונוספה ליומן' : 'הביקורת הוסרה')) }, 'שמירה'),
+        p.recallDate ? h('button', { class: 'btn sm', onclick: () => mutate('setRecall', p.id, '') }, 'הסרה') : null),
+      h('div', { class: 'muted small', style: 'margin-top:6px' }, 'נקבע אוטומטית כשמסמנים טיפול כ"בוצע" (לפי סוג הטיפול). מופיע ביומן עם התראה יום לפני.')),
+
+    h('h2', null, '📝 טפסים', forms.some(x => x.status !== 'מולא') ? h('span', { class: 'count' }, forms.filter(x => x.status !== 'מולא').length + ' חסרים') : null),
+    h('div', { class: 'card' },
+      forms.length ? forms.map(x => h('div', { class: 'form-row' + (x.status === 'מולא' ? ' done' : '') },
+        h('input', { type: 'checkbox', checked: x.status === 'מולא', onchange: () => mutate('toggleForm', x.id) }),
+        h('span', { class: 'grow' }, x.form),
+        x.date ? h('span', { class: 'muted small' }, fDateY(D(x.date))) : null,
+        h('button', { class: 'btn ghost sm', title: 'הסרה', onclick: async () => await ask(`להסיר את "${x.form}"?`, 'הסרה') && mutate('removeForm', x.id) }, '✕'))) : h('div', { class: 'muted small' }, 'אין טפסים ברשימה. טפסים נדרשים לפי קורס נוספים אוטומטית.'),
+      h('div', { class: 'row', style: 'margin-top:8px' }, h('div', { class: 'grow' }, newForm, h('datalist', { id: 'formNames' }, knownForms.map(n => opt(n)))),
+        h('button', { class: 'btn sm', onclick: () => newForm.value.trim() && mutate('addForm', p.id, newForm.value.trim()) }, '+ הוספה'))),
+
+    (() => {
+      const sent = (d.sentLog || []).filter(s => s.patientId === p.id).sort((a, b) => (D(b.at) || 0) - (D(a.at) || 0)).slice(0, 10);
+      return sent.length ? [h('h2', null, '📨 הודעות שנשלחו'), h('div', { class: 'card' }, sent.map(s => {
+        const body = h('div', { class: 'muted small hidden', style: 'white-space:pre-wrap' }, s.text || '(הטקסט לא נשמר)');
+        return h('div', { class: 'tap', style: 'padding:6px 0;border-top:1px solid var(--line)', onclick: () => body.classList.toggle('hidden') },
+          h('div', { class: 'row small' }, h('span', null, CHANNEL_ICON[s.channel] || '✓'), h('span', { class: 'grow' }, s.label || 'הודעה'),
+            h('span', { class: 'muted' }, D(s.at) ? fDateY(D(s.at)) : '')), body);
+      }))] : null;
+    })(),
+    h('h2', null, '👤 פרטים'),
+    h('div', { class: 'card' },
+      field('name', 'שם מלא', h('input', { class: 'i', value: p.name })),
+      field('phone', 'טלפון', h('input', { class: 'i', type: 'tel', value: p.phone })),
+      field('email', 'מייל', h('input', { class: 'i', type: 'email', value: p.email || '', placeholder: 'לשליחת הודעות במייל' })),
+      field('idNumber', 'ת"ז', h('input', { class: 'i', inputmode: 'numeric', value: p.idNumber || '' })),
+      field('contactPref', 'דרך יצירת קשר', h('input', { class: 'i', list: 'contactMethods', value: p.contactPref || '', placeholder: 'למשל וואטסאפ / שיחה' })),
+      h('datalist', { id: 'contactMethods' }, (d.settings.contactMethods || []).map(m => opt(m))),
+      h('label', { class: 'f' }, 'לשון פנייה בהודעות'), gSeg,
+      h('label', { class: 'f' }, 'קורסים'), courseChips,
+      field('hmo', 'קופ"ח', h('input', { class: 'i', value: p.hmo || '' })),
+      field('reason', 'סיבת פנייה', h('input', { class: 'i', value: p.reason || '' })),
+      field('pastTreatments', 'טיפולי עבר', h('input', { class: 'i', value: p.pastTreatments || '' })),
+      field('source', 'איך הגיע/ה', h('input', { class: 'i', value: p.source || '' })),
+      field('notes', 'הערות אישיות (מקצוע, מה אוהב/ת, דגשים)', h('textarea', { class: 'i', value: p.notes || '' })),
+      (d.patientColumns || []).map(title => { const v = (p.extra || {})[title]; return field('x:' + title, title, h('input', { class: 'i', value: v === null || v === undefined ? '' : v })); }),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary block', onclick: save }, 'שמירת פרטים'))),
+
+    h('div', { style: 'margin:24px 0 8px' }, isClosed
+      ? h('button', { class: 'btn block', onclick: () => mutate('reopenPatient', p.id).then(() => toast('הוחזר/ה לטיפול')) }, '↩︎ החזרה לטיפול')
+      : h('button', { class: 'btn danger block', onclick: () => closeDialog(p, upcoming.filter(t => D(t.start) >= now)) }, '🏁 סיום טיפול'))
+  ];
+}
+
+function closeDialog(p, future) {
+  const cb = h('input', { type: 'checkbox', checked: true });
+  sheet(close => [
+    h('h3', null, `סיום טיפול – ${p.name}`),
+    h('p', null, 'כל התזכורות על המטופל/ת ייעצרו: תזכורות לתורים, ביקורת וטפסים חסרים. הכרטיס נשאר בטבלה המלאה, ואפשר להחזיר לטיפול בכל רגע.'),
+    future.length ? h('label', { class: 'row card' }, cb, h('span', null, `לבטל גם ${future.length} ${future.length === 1 ? 'תור עתידי' : 'תורים עתידיים'} (יימחקו מהיומן): `,
+      future.map(t => `${t.type} ${fDate(D(t.start))}`).join(', '))) : null,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn danger', onclick: async () => { await mutate('closePatient', p.id, future.length ? cb.checked : false); close(); toast('הטיפול הסתיים'); } }, 'סיום טיפול'),
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+/* ================= editors ================= */
+/** Approve a form inquiry. Gender is required: every message is phrased by it. */
+function activate(p) {
+  if (!IDX.p[p.id].gender) return toast(G('קודם בחר', 'קודם בחרי', 'קודם צריך לבחור') + ' לשון פנייה (זכר/נקבה/רבים) – לפיה ההודעות מנוסחות', true);
+  return mutate('activatePatient', p.id).then(() => toast(`${p.name} עבר/ה לפעילים`));
+}
+
+function patientEditor(prefillName, entry) {
+  const name = h('input', { class: 'i', placeholder: 'שם מלא', value: prefillName || '' });
+  const idNum = h('input', { class: 'i', inputmode: 'numeric', placeholder: 'אופציונלי' });
+  const pref = h('input', { class: 'i', list: 'contactMethodsNew', placeholder: 'למשל וואטסאפ / שיחה' });
+  const phone = h('input', { class: 'i', type: 'tel', placeholder: '05X-XXXXXXX' });
+  const email = h('input', { class: 'i', type: 'email', placeholder: 'אופציונלי' });
+  let gender = '';
+  const seg = h('div', { class: 'seg' });
+  const paint = () => seg.replaceChildren(...S.data.meta.genders.map(g => h('button', { class: gender === g ? 'on' : '', onclick: () => { gender = g; paint(); } }, g)));
+  paint();
+  const course = h('select', { class: 'i' }, opt('', '—'), S.data.courses.map(c => opt(c)));
+  sheet(close => [
+    h('h3', null, 'מטופל/ת חדש/ה'),
+    h('label', { class: 'f' }, 'שם מלא'), name,
+    h('label', { class: 'f' }, 'טלפון'), phone,
+    h('label', { class: 'f' }, 'מייל'), email,
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'ת"ז'), idNum),
+      h('div', null, h('label', { class: 'f' }, 'דרך יצירת קשר'), pref, h('datalist', { id: 'contactMethodsNew' }, (S.data.settings.contactMethods || []).map(m => opt(m))))),
+    h('label', { class: 'f' }, 'לשון פנייה בהודעות *'), seg,
+    h('label', { class: 'f' }, 'קורס'), course,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        if (!name.value.trim()) return toast('חסר שם', true);
+        if (!gender) return toast(G('בחר', 'בחרי', 'צריך לבחור') + ' לשון פנייה – לפיה ההודעות מנוסחות', true);
+        const r = await mutate('savePatient', { name: name.value, phone: phone.value, email: email.value.trim(), idNumber: idNum.value.trim(), contactPref: pref.value.trim(), gender, courses: course.value, status: 'פעיל' });
+        close(); openPatient(r.id);
+        // From a table row: offer that row's appointment right away (it is already in the table, so no write-back).
+        if (entry && IDX.p[r.id]) treatmentEditor(IDX.p[r.id], null, { schedule: true, fromTable: true, prefill: { type: entry.detail || '', start: entry.start, status: 'נקבע' } });
+      } }, 'יצירה'),
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+  setTimeout(() => name.focus(), 50);
+}
+
+function treatmentEditor(p, t, opts) {
+  opts = opts || {};
+  const d = S.data, schedule = !!opts.schedule || (t && t.status === 'נקבע');
+  const neededList = (IDX.tByP[p.id] || []).filter(x => x.status === 'נדרש');
+  let base = t || opts.prefill || null;
+  // "Schedule" from the card with open needs: let her pick which need this appointment covers.
+  const pick = !t && schedule && neededList.length ? h('select', { class: 'i', onchange: e => { base = IDX.t[e.target.value] || null; fill(); } },
+    opt('', '— טיפול חדש —'), neededList.map(x => opt(x.id, `${x.type}${x.tooth ? ' · ' + x.tooth : ''}${x.course ? ' · ' + x.course : ''}`))) : null;
+
+  const typeIn = h('input', { class: 'i', list: 'typeNames', placeholder: 'סוג טיפול' });
+  const courseIn = h('select', { class: 'i' });
+  const tooth = h('input', { class: 'i', placeholder: 'למשל 36 או רביע 2' });
+  const code = h('input', { class: 'i', placeholder: 'למשל ח6' });
+  const date = h('input', { class: 'i', type: 'date' });
+  const time = h('input', { class: 'i', type: 'time', step: 300 });
+  const dur = h('input', { class: 'i', type: 'number', min: 10, step: 5 });
+  const status = h('select', { class: 'i' }, Object.values(d.meta.tStatus).map(s => opt(s)));
+  const counts = h('input', { type: 'checkbox' });
+  const writers = (d.sources || []).filter(x => x.write && x.active);
+  const writeChk = h('input', { type: 'checkbox', checked: !opts.fromTable });
+  const notes = h('input', { class: 'i' });
+  const myCourses = String(p.courses || '').split(/,\s*/).filter(Boolean);
+  const courseOpts = Array.from(new Set(myCourses.concat(d.courses)));
+
+  function fill() {
+    const b = base || {};
+    typeIn.value = b.type || '';
+    courseIn.replaceChildren(opt('', '—'), ...courseOpts.map(c => opt(c, c, (b.course || myCourses[0]) === c)));
+    tooth.value = b.tooth || '';
+    code.value = b.code || '';
+    const s = D(b.start);
+    date.value = s ? dKey(s) : '';
+    time.value = s ? fTime(s) : '';
+    dur.value = b.duration || ((d.types.find(x => x.name === b.type) || {}).duration || '');
+    status.value = b.status && !(schedule && b.status === 'נדרש') ? b.status : (schedule ? 'נקבע' : 'נדרש');
+    counts.checked = b.counts === undefined || b.counts === '' || b.counts === 'כן' || b.counts === true;
+    notes.value = b.notes || '';
+  }
+  fill();
+  typeIn.addEventListener('change', () => {
+    const tt = d.types.find(x => x.name === typeIn.value);
+    if (tt && !dur.value) dur.value = tt.duration;
+  });
+
+  sheet(close => [
+    h('h3', null, t ? 'עריכת טיפול' : schedule ? `קביעת תור – ${p.name}` : `טיפול נדרש – ${p.name}`),
+    pick ? [h('label', { class: 'f' }, 'איזה טיפול נדרש קובעים?'), pick] : null,
+    h('label', { class: 'f' }, 'סוג טיפול'), typeIn, h('datalist', { id: 'typeNames' }, (d.treatmentNames || d.types.map(x => x.name)).map(n => opt(n))),
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'קורס'), courseIn),
+      h('div', null, h('label', { class: 'f' }, 'שן / אזור'), tooth)),
+    h('label', { class: 'f' }, 'קוד (אופציונלי)'), code,
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'תאריך'), date),
+      h('div', null, h('label', { class: 'f' }, 'שעה'), time)),
+    h('div', { class: 'two' },
+      h('div', null, h('label', { class: 'f' }, 'משך (דקות)'), dur),
+      h('div', null, h('label', { class: 'f' }, 'סטטוס'), status)),
+    h('label', { class: 'row small', style: 'margin-top:10px' }, counts, 'נספר לדרישות הקורס'),
+    writers.length ? h('label', { class: 'row small', style: 'margin-top:6px' }, writeChk, 'לרשום גם ב: ' + writers.map(w => w.name).join(', ')) : null,
+    h('label', { class: 'f' }, 'הערות'), notes,
+    schedule ? h('div', { class: 'muted small', style: 'margin-top:8px' }, '📅 התור ייכנס ליומן "MoonCRM – מטופלים" עם התראות שבועיים, שבוע ויום לפני, וקישורי וואטסאפ מוכנים.') : null,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: async () => {
+        if ((date.value && !time.value) || (!date.value && time.value)) return toast('צריך גם תאריך וגם שעה', true);
+        const payload = {
+          id: base && base.id, patientId: p.id, type: typeIn.value.trim(), course: courseIn.value, tooth: tooth.value, code: code.value.trim(),
+          start: date.value ? `${date.value}T${time.value}` : '', duration: Number(dur.value) || '',
+          status: status.value, counts: counts.checked ? 'כן' : 'לא', notes: notes.value, writeBack: writeChk.checked
+        };
+        if (payload.status === 'נקבע' && !payload.start) return toast('כדי לקבוע תור צריך תאריך ושעה', true);
+        const r = await mutate('saveTreatment', payload);
+        close();
+        (r && r.writeBack || []).forEach(w => toast(w.ok ? `✍️ נרשם ב"${w.source}" (${w.cell})` : `⚠️ "${w.source}": ${w.message}`, !w.ok));
+        if (payload.status === 'נקבע' && (!base || !base.id || base.status !== 'נקבע')) {
+          const tpl = tplByTrigger('קביעת תור');
+          if (tpl && await ask('התור נקבע ונוסף ליומן ✓ לשלוח ' + ({ 'זכר': 'למטופל', 'נקבה': 'למטופלת' }[p.gender] || 'למטופל/ת') + ' הודעת אישור?', '💬 כן, לניסוח', 'לא עכשיו')) composer(p.id, { templateKey: tpl.key, treatmentId: r.id });
+        } else toast('נשמר' + (r && r.recallSet ? ` · ביקורת ב-${fDateY(D(r.recallSet))}` : ''));
+      } }, schedule ? 'קביעה' : 'שמירה'),
+      base && base.id ? h('button', { class: 'btn danger', onclick: async () => {
+        if (!await ask('למחוק את הטיפול לגמרי? (אם רק התבטל – עדיף לסמן "בוטל")', 'מחיקה')) return;
+        await mutate('deleteTreatment', base.id); close();
+      } }, 'מחיקה') : null,
+      h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+/** Message composer: pick template (+ appointment) → rendered text → WhatsApp / copy → mark sent. */
+function composer(pid, o) {
+  o = o || {};
+  const p = IDX.p[pid], d = S.data;
+  const tpls = d.templates;
+  const tplSel = h('select', { class: 'i' }, tpls.map(t => opt(t.key, t.name, t.key === o.templateKey)));
+  if (!o.templateKey && tpls[0]) tplSel.value = tpls[0].key;
+  const appts = (IDX.tByP[pid] || []).filter(t => t.status === 'נקבע' || t.status === 'נדרש' || t.status === 'בוצע')
+    .sort((a, b) => (D(b.start) || 0) - (D(a.start) || 0));
+  const tSel = h('select', { class: 'i' }, opt('', 'אוטומטי (התור הבא)'),
+    appts.map(t => opt(t.id, `${t.type}${D(t.start) ? ' · ' + fDate(D(t.start)) : ''} (${t.status})`, t.id === o.treatmentId)));
+  const ta = h('textarea', { class: 'i', style: 'min-height:170px' });
+  const phone = String(p.phone || '').replace(/\D/g, '').replace(/^0/, '972');
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const waBtn = h('a', { class: 'btn wa', target: '_blank', rel: 'noopener' }, '💬 פתיחה בוואטסאפ');
+  const smsBtn = h('a', { class: 'btn wa', target: '_blank', rel: 'noopener' }, '✉️ פתיחה בהודעות (SMS)');
+  const syncLinks = () => {
+    waBtn.href = `https:\/\/wa.me/${phone}?text=${encodeURIComponent(ta.value)}`;
+    smsBtn.href = `sms:+${phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(ta.value)}`;
+  };
+  ta.addEventListener('input', syncLinks);
+  // Email channel: sent from the user's own Gmail through the server.
+  const toIn = h('input', { class: 'i', type: 'email', value: p.email || '', placeholder: 'כתובת מייל' });
+  const subjIn = h('input', { class: 'i', placeholder: 'נושא' });
+  const pref = String(p.contactPref || '');
+  let channel = /מייל|mail/i.test(pref) || (!p.phone && p.email) ? 'mail' : /SMS|סמס/i.test(pref) ? 'sms' : 'wa';
+  const renderMsg = () => {
+    ta.value = '…';
+    call('renderMessage', pid, tplSel.value, tSel.value).then(r => { ta.value = r.text; subjIn.value = r.subject; syncLinks(); }).catch(e => toast(e.message, true));
+  };
+  tplSel.addEventListener('change', renderMsg);
+  tSel.addEventListener('change', renderMsg);
+  if (!p.gender) toast('ללשון הפנייה לא הוגדר מגדר – ההטיות יופיעו כ"אשר/אשרי"');
+  const label = () => o.sentLabel || (tpls.find(t => t.key === tplSel.value) || {}).name || 'הודעה';
+
+  sheet(close => {
+    // WhatsApp/SMS leave the app, so the user confirms it was sent; that saves it to the history.
+    const sentBtn = h('button', { class: 'btn' }, '✓ נשלח – שמירה בהיסטוריה');
+    sentBtn.addEventListener('click', async () => {
+      await mutate('markSent', o.sentKey || '', pid, label(), channel === 'sms' ? 'SMS' : 'וואטסאפ', ta.value);
+      close(); toast('נשמר בהיסטוריה');
+    });
+    [waBtn, smsBtn].forEach(b => b.addEventListener('click', () => setTimeout(() => sentBtn.classList.add('primary'), 400)));
+    const sendMail = async () => {
+      const to = toIn.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return toast('כתובת המייל לא תקינה', true);
+      if (!await ask(`לשלוח את ההודעה במייל אל ${to}?\nהמייל יישלח מחשבון הג'ימייל שלך.`, '📧 שליחה')) return;
+      await mutate('sendEmail', { patientId: pid, to, subject: subjIn.value, body: ta.value, sentKey: o.sentKey || '' });
+      close(); toast('📧 המייל נשלח');
+    };
+    const copyBtn = h('button', { class: 'btn', onclick: () => navigator.clipboard.writeText(ta.value).then(() => toast('הועתק'), () => { ta.select(); document.execCommand('copy'); toast('הועתק'); }) }, '📋 העתקה');
+    const phoneBox = h('div', { class: 'actions' }, waBtn, smsBtn, copyBtn, sentBtn, h('button', { class: 'btn ghost', onclick: close }, 'סגירה'));
+    const mailBox = h('div', null,
+      h('label', { class: 'f' }, 'אל'), toIn,
+      h('label', { class: 'f' }, 'נושא'), subjIn,
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: sendMail }, '📧 שליחה במייל'),
+        h('button', { class: 'btn ghost', onclick: close }, 'סגירה')));
+    const seg = h('div', { class: 'seg', style: 'margin-bottom:6px' });
+    const paint = () => {
+      seg.replaceChildren(...[['wa', '💬 וואטסאפ'], ['sms', '✉️ SMS'], ['mail', '📧 מייל']].map(([k, l]) =>
+        h('button', { class: channel === k ? 'on' : '', onclick: () => { channel = k; paint(); } }, l)));
+      phoneBox.classList.toggle('hidden', channel === 'mail');
+      waBtn.classList.toggle('hidden', channel !== 'wa');
+      smsBtn.classList.toggle('hidden', channel !== 'sms');
+      mailBox.classList.toggle('hidden', channel !== 'mail');
+    };
+    paint();
+    return [
+      h('h3', null, `הודעה ל${p.name}`),
+      pref ? h('div', { class: 'muted small', style: 'margin:-4px 0 6px' }, 'דרך יצירת קשר מועדפת: ' + pref,
+        /שיחה|טלפון/.test(pref) && p.phone ? h('a', { class: 'btn sm', style: 'margin-inline-start:8px', href: 'tel:' + p.phone }, '📞 התקשרות') : null) : null,
+      seg,
+      h('label', { class: 'f' }, 'תבנית'), tplSel,
+      h('label', { class: 'f' }, 'עבור תור'), tSel,
+      h('label', { class: 'f' }, 'ההודעה (אפשר לערוך לפני השליחה)'), ta,
+      !p.phone ? h('div', { class: 'alert info small', style: 'margin-top:8px' }, 'אין מספר טלפון בכרטיס – וואטסאפ ייפתח לבחירת איש קשר. כדאי להוסיף טלפון בכרטיס המטופל.') : null,
+      phoneBox, mailBox
+    ];
+  });
+  renderMsg();
+}
+
+/** In-app confirm (native confirm/prompt can be blocked inside the Apps Script iframe). */
+function ask(message, okLabel, cancelLabel) {
+  return new Promise(resolve => {
+    sheet(close => [
+      h('p', { style: 'white-space:pre-line;font-size:17px;margin:4px 0 12px' }, message),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', onclick: () => { close(); resolve(true); } }, okLabel || 'אישור'),
+        h('button', { class: 'btn ghost', onclick: () => { close(); resolve(false); } }, cancelLabel || 'ביטול'))
+    ], () => resolve(false));
+  });
+}
+
+function askText(title, value) {
+  return new Promise(resolve => {
+    const inp = h('input', { class: 'i', value: value || '' });
+    sheet(close => [
+      h('h3', null, title), inp,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', onclick: () => { close(); resolve(inp.value.trim() || null); } }, 'שמירה'),
+        h('button', { class: 'btn ghost', onclick: () => { close(); resolve(null); } }, 'ביטול'))
+    ], () => resolve(null));
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+
+/** Bottom sheet. builder(close) returns the content. */
+function sheet(builder, onDismiss) {
+  const scrim = h('div', { class: 'scrim' });
+  const close = () => scrim.remove();
+  scrim.addEventListener('click', e => { if (e.target === scrim) { close(); if (onDismiss) onDismiss(); } });
+  scrim.appendChild(h('div', { class: 'sheet' }, builder(close)));
+  document.body.appendChild(scrim);
+}
+
+/* ================= onboarding · license lock · settings ================= */
+
+function renderGate() {
+  const g = S.gate;
+  ['tabs', 'syncBtn', 'settingsBtn'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('syncLabel').textContent = '';
+  const lic = g.license || {};
+  const screen = g.needsTerms ? viewTerms(g)
+    : g.needsOnboarding ? (g.termsOk && g.licensing && !lic.ok && lic.status !== 'none' ? viewLocked(g) : viewOnboarding(g))
+    : viewLocked(g);
+  document.getElementById('view').replaceChildren(...[].concat(screen).flat(9).filter(Boolean));
+}
+
+function genderSeg(value, onPick) {
+  const seg = h('div', { class: 'seg' });
+  const paint = v => seg.replaceChildren(...[['זכר', 'זכר'], ['נקבה', 'נקבה'], ['', 'ניטרלי']].map(([k, l]) =>
+    h('button', { class: v === k ? 'on' : '', onclick: () => { onPick(k); paint(k); } }, l)));
+  paint(value);
+  return seg;
+}
+
+function termsCheck(st, g) {
+  return h('label', { class: 'row small', style: 'margin-top:12px;align-items:flex-start' },
+    h('input', { type: 'checkbox', checked: st.terms, style: 'margin-top:3px', onchange: e => { st.terms = e.target.checked; } }),
+    h('span', null, 'קראתי ואני ' + G('מסכים', 'מסכימה', 'מסכים/ה') + ' ל',
+      h('a', { href: g.termsUrl, target: '_blank' }, 'תנאי השימוש'), ' – כולל ההבנה שזו גרסת אלפא, ושהתנאים עשויים להשתנות בהמשך (גם לגבי רישיונות).'));
+}
+
+function viewOnboarding(g) {
+  const d = g.draft || {};
+  const st = S.onb = S.onb || { name: d.senderName || '', clinic: d.clinicLocation || '', url: d.existingUrl || '', restore: !!d.existingUrl, terms: false };
+  if (S.onboardGender === undefined && d.userGender !== undefined) S.onboardGender = d.userGender;
+  const field = (k, attrs) => h('input', Object.assign({ class: 'i', value: st[k], oninput: e => { st[k] = e.target.value; } }, attrs));
+  const go = async () => {
+    if (!st.name.trim()) return toast(G('כתוב את השם שלך', 'כתבי את השם שלך', 'צריך לכתוב שם'), true);
+    if (!st.terms) return toast('צריך לאשר את תנאי השימוש', true);
+    st.working = true; renderGate(); busy(true);
+    try {
+      const snap = await call('requestAccess', { senderName: st.name, userGender: S.onboardGender || '', clinicLocation: st.clinic,
+        existingUrl: st.restore ? st.url : '', acceptTerms: true });
+      S.onb = null; setData(snap);
+      if (snap.patients) toast('✓ המערכת מוכנה');
+    } catch (e) { toast(e.message, true); }
+    finally { busy(false); if (S.onb) { st.working = false; renderGate(); } }
+  };
+  return [
+    h('div', { class: 'card' },
+      h('img', { class: 'brand-logo', src: (window.BRAND || {}).logo, alt: 'MoonCRM' }),
+      h('h2', { style: 'margin-top:0;justify-content:center' }, G('ברוך הבא', 'ברוכה הבאה', 'ברוכים הבאים')),
+      h('p', null, `המערכת תקים גיליון ויומן משלה בחשבון הגוגל שלך${g.email ? ` (${g.email})` : ''}. הנתונים נשמרים רק אצלך.`),
+      g.licensing ? h('div', { class: 'alert info small' }, 'MoonCRM בגרסת אלפא, בהזמנה בלבד: הבקשה נשלחת לאישור, והמערכת נפתחת מיד אחרי שהיא מאושרת.') : null,
+      h('label', { class: 'f' }, 'השם שלך (יופיע בסוף ההודעות למטופלים)'), field('name', { placeholder: 'שם' }),
+      h('label', { class: 'f' }, 'איך לפנות אליך? (גם בהודעות שנשלחות בשמך)'),
+      genderSeg(S.onboardGender || '', v => { S.onboardGender = v; renderGate(); }),
+      h('label', { class: 'f' }, 'המרפאה (נכנס להודעות)'), field('clinic', { placeholder: 'למשל: במרפאת הסטודנטים, קומה 2' }),
+      h('label', { class: 'row small', style: 'margin-top:12px' },
+        h('input', { type: 'checkbox', checked: st.restore, onchange: e => { st.restore = e.target.checked; renderGate(); } }),
+        'יש לי כבר גיליון של המערכת (שחזור / מכשיר חדש)'),
+      st.restore ? field('url', { placeholder: 'קישור לגיליון: https:\/\/docs.google.com/spreadsheets/d/…' }) : null,
+      termsCheck(st, g),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary block', disabled: st.working, onclick: go },
+          st.working ? 'רגע… (הקמת המערכת לוקחת כדקה, לא לסגור את הדף)'
+            : g.licensing && !(g.license || {}).ok ? 'שליחת בקשת הצטרפות' : G('הקם את המערכת', 'הקימי את המערכת', 'הקמת המערכת'))),
+      h('p', { class: 'muted small' }, 'גוגל תבקש אישור לגישה לגיליונות, ליומן, לקבצים שהמערכת עצמה יוצרת ולשליחת מייל בשמך. המערכת לא רואה קבצים אחרים בדרייב שלך.'))
+  ];
+}
+
+/** Terms changed (or were never accepted on this account): accept before continuing. */
+function viewTerms(g) {
+  const st = { terms: false };
+  return h('div', { class: 'card' },
+    h('img', { class: 'brand-logo', src: (window.BRAND || {}).logo, alt: 'MoonCRM' }),
+    h('h2', { style: 'margin-top:0' }, '📄 תנאי השימוש'),
+    h('p', null, 'כדי להמשיך להשתמש ב-MoonCRM צריך לאשר את תנאי השימוש. הנתונים שלך לא השתנו.'),
+    h('a', { class: 'btn', href: g.termsUrl, target: '_blank' }, 'קריאת התנאים ↗'),
+    termsCheck(st, g),
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary block', onclick: async () => {
+      if (!st.terms) return toast('צריך לסמן את האישור', true);
+      busy(true); try { setData(await call('acceptTerms')); } catch (e) { toast(e.message, true); } finally { busy(false); }
+    } }, 'אישור והמשך')));
+}
+
+function viewLocked(g) {
+  const lic = g.license || {};
+  const pending = lic.status === 'pending';
+  const titles = { pending: '⏳ הבקשה נשלחה', expired: '🔒 תוקף הרישיון הסתיים', blocked: '🔒 הגישה נחסמה', cancelled: '🔒 הגישה בוטלה',
+    unreachable: '⚠️ לא ניתן לבדוק את ההרשאה כרגע' };
+  const recheck = async () => { busy(true); try { const r = await call('recheckLicense'); setData(r); if (r.patients) toast('✓ אושר!'); else if (r.license && r.license.status === 'pending') toast('עדיין ממתין לאישור'); } catch (e) { toast(e.message, true); } finally { busy(false); } };
+  return h('div', { class: 'card' },
+    h('img', { class: 'brand-logo', src: (window.BRAND || {}).logo, alt: 'MoonCRM' }),
+    h('h2', { style: 'margin-top:0' }, titles[lic.status] || '🔒 אין הרשאת שימוש פעילה'),
+    pending ? h('p', null, 'בקשת ההצטרפות ל-MoonCRM התקבלה וממתינה לאישור. אחרי האישור – ללחוץ "בדיקה שוב" (או לחזור לכאן מאוחר יותר), והמערכת תוקם אוטומטית.')
+      : lic.message ? h('p', null, lic.message) : null,
+    lic.expires && !pending ? h('p', { class: 'muted' }, 'תוקף עד: ' + fDateY(D(lic.expires))) : null,
+    g.email ? h('p', { class: 'muted small' }, 'חשבון: ' + g.email) : null,
+    g.contact ? h('p', null, g.contact) : null,
+    g.sheetUrl ? [h('p', { class: 'muted small' }, 'האוטומציות (תזכורות, ייבוא, סנכרון) מושהות. הנתונים שלך לא נמחקו – הם בגיליון ובלוח השנה בחשבון שלך.'),
+      h('a', { class: 'btn', href: g.sheetUrl, target: '_blank' }, '📄 הנתונים שלי בגיליון ↗')] : null,
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: recheck }, '⟳ בדיקה שוב')));
+}
+
+function licenseBanner() {
+  const a = S.data.account, lic = a.license || {};
+  if (!a.licensing || !lic.ok || lic.daysLeft === null || lic.daysLeft > a.warnDays) return null;
+  return h('div', { class: 'alert small' }, `⏳ הרישיון יפוג בעוד ${lic.daysLeft} ימים (${fDateY(D(lic.expires))}).`, a.contact ? ' ' + a.contact : '');
+}
+
+function settingsSheet() {
+  const d = S.data, s = d.settings, a = d.account, lic = a.license || {};
+  const st = { senderName: s.senderName, userGender: s.userGender, clinicLocation: s.clinicLocation, defaultDuration: s.defaultDuration,
+    contactMethods: (s.contactMethods || []).join(', ') };
+  const inp = (k, attrs) => h('input', Object.assign({ class: 'i', value: st[k] || '', oninput: e => { st[k] = e.target.value; } }, attrs));
+  const LS = { active: ['פעיל', 'ok'], pending: ['ממתין לאישור', 'warn'], expired: ['פג תוקף', 'danger'], blocked: ['חסום', 'danger'], cancelled: ['בוטל', 'danger'], off: ['ללא רישוי', 'gray'] };
+  sheet(close => [
+    h('h3', null, '⚙️ הגדרות'),
+    h('label', { class: 'f' }, 'השם שלך (סוף ההודעות ושם השולח במייל)'), inp('senderName'),
+    h('label', { class: 'f' }, 'איך לפנות אליך (גם בהודעות שנשלחות בשמך)'), genderSeg(st.userGender || '', v => { st.userGender = v; }),
+    h('label', { class: 'f' }, 'המרפאה – {מיקום}'), inp('clinicLocation'),
+    h('label', { class: 'f' }, 'משך תור ברירת מחדל (דקות)'), inp('defaultDuration', { type: 'number', min: 10, step: 5 }),
+    h('label', { class: 'f' }, 'אפשרויות "דרך יצירת קשר" (מופרדות בפסיקים)'), inp('contactMethods'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: async () => { await mutate('saveSettings', st); close(); toast('נשמר'); } }, 'שמירה')),
+
+    a.licensing ? [
+      h('h3', { style: 'margin-top:16px' }, '🔑 הרשאת שימוש'),
+      h('div', { class: 'row wrap small' }, h('span', { class: 'badge ' + ((LS[lic.status] || [])[1] || 'gray') }, (LS[lic.status] || [lic.status])[0]),
+        lic.plan ? h('span', null, lic.plan) : null, lic.expires ? h('span', null, 'עד ' + fDateY(D(lic.expires))) : null,
+        lic.offline ? h('span', { class: 'badge warn' }, 'לא מקוון') : null),
+      h('div', { class: 'small', style: 'margin-top:4px' }, h('a', { href: a.termsUrl, target: '_blank' }, 'תנאי השימוש ↗'))
+    ] : null,
+
+    h('h3', { style: 'margin-top:16px' }, '🤖 ניתוח מסמכים (Gemini)'),
+    h('div', { class: 'row small' }, h('span', { class: 'grow' }, s.aiKeyShared ? '✓ מחובר (מפתח משותף של המערכת)' : s.hasAiKey ? '✓ מחובר' : 'לא מחובר'),
+      s.hasAiKey && !s.aiKeyShared
+        ? h('button', { class: 'btn sm', onclick: async () => { busy(true); try { await call('setGeminiKey', ''); await load('bootstrap'); close(); toast('נותק'); } finally { busy(false); } } }, 'ניתוק')
+        : h('button', { class: 'btn sm', onclick: () => { close(); aiKeyDialog(); } }, s.aiKeyShared ? 'מפתח אישי' : 'חיבור')),
+    s.checklistHidden ? h('button', { class: 'btn ghost sm', onclick: async () => { await mutate('saveSettings', { checklistHidden: '' }); close(); go('today'); } }, '🚀 הצגת "צעדים ראשונים"') : null,
+
+    h('h3', { style: 'margin-top:16px' }, 'מערכת'),
+    h('div', { class: 'muted small' }, `${a.email || ''} · גרסה ${a.version}`),
+    h('div', { class: 'actions' },
+      h('a', { class: 'btn', href: s.sheetUrl, target: '_blank' }, '📄 הגיליון ↗'),
+      h('button', { class: 'btn', onclick: async () => {
+        if (!await ask('לתקן את המערכת? הלשוניות, היומן והאוטומציות ייבדקו וייווצרו מחדש אם חסר משהו. נתונים לא נמחקים.', 'תיקון')) return;
+        await mutate('repairWorkspace'); close(); toast('✓ המערכת תוקנה');
+      } }, '🔧 תיקון המערכת'),
+      h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+  ]);
+}
+document.getElementById('settingsBtn').addEventListener('click', () => S.data && settingsSheet());
+
+/* ================= boot ================= */
+(function boot() {
+  const icon = document.getElementById('brandIcon');
+  if (icon && window.BRAND) icon.src = BRAND.icon;
+  const start = hash => {
+    const m = String(hash || '').match(/^\/?p\/(\w+)/);
+    const t = String(hash || '').match(/^\/?(today|table|schedule|messages|reqs|templates)$/);
+    // google.script.run never answers when the browser holds several Google accounts: say so instead of spinning forever.
+    const slow = setTimeout(() => {
+      if (S.data || S.gate || window.__moonAuthWait) return; // __moonAuthWait: the site shell is signing in
+      document.getElementById('view').replaceChildren(h('div', { class: 'card' },
+        h('b', {}, 'הטעינה לוקחת יותר מדי זמן'),
+        h('p', { class: 'muted' }, 'זה קורה בדרך כלל כשבדפדפן מחוברים כמה חשבונות גוגל. ' + G('פתח', 'פתחי', 'כדאי לפתוח') +
+          ' את הכתובת בחלון גלישה בסתר (או בדפדפן אחר), עם חשבון הגוגל שלך בלבד.'),
+        h('button', { class: 'btn', onclick: () => location.reload() }, '⟳ ניסיון נוסף')));
+    }, 20000);
+    load('bootstrap').then(() => {
+      clearTimeout(slow);
+      if (m && IDX.p[m[1]]) openPatient(m[1]);
+      else if (t) go(t[1]);
+    }).catch(() => document.getElementById('view').replaceChildren(h('div', { class: 'card empty' }, 'הטעינה נכשלה. ' + G('נסה', 'נסי', 'כדאי') + ' לרענן את הדף.')));
+  };
+  try { google.script.url.getLocation(loc => start(loc.hash)); } catch (e) { start(location.hash.slice(1)); }
+})();
+</script>
+
 </body>
 </html>
