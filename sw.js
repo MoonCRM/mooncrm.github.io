@@ -1,7 +1,7 @@
 // MoonCRM service worker: makes the site installable and opens instantly; always prefers the network,
 // so an update reaches users on their next open. Google API calls are never cached.
-const CACHE = 'mooncrm-v1';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'mooncrm-icon-180.png', 'mooncrm-icon-512.png'];
+const CACHE = 'mooncrm-v2';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'app-icon-180.png', 'app-icon-192.png', 'app-icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

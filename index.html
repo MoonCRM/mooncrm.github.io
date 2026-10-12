@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>MoonCRM</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="mooncrm-icon-96.png">
-  <link rel="apple-touch-icon" href="mooncrm-icon-180.png">
+  <link rel="icon" href="app-icon-96.png">
+  <link rel="apple-touch-icon" href="app-icon-180.png">
   <meta name="theme-color" content="#1d6574">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -237,7 +237,14 @@ table.tbl { border-collapse: collapse; min-width: 980px; width: 100%; font-size:
     if (!silent) q.set('prompt', 'select_account');
     location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + q.toString();
   }
-  window.mooncrmSignOut = () => { store.set(AUTH, null); location.reload(); };
+  /** Sign out (or switch account): revoke this token, forget the account, back to the welcome screen. */
+  window.mooncrmSignOut = () => {
+    const a = store.get(AUTH);
+    store.set(AUTH, null);
+    const done = () => location.replace(location.pathname);
+    if (a && a.token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(a.token), { method: 'POST', mode: 'no-cors' }).then(done, done);
+    else done();
+  };
 
   /** First visit / signed out: a welcome screen instead of an automatic jump to Google. */
   function landing() {
@@ -1989,7 +1996,8 @@ function viewOnboarding(g) {
         h('button', { class: 'btn primary block', disabled: st.working, onclick: go },
           st.working ? 'רגע… (הקמת המערכת לוקחת כדקה, לא לסגור את הדף)'
             : g.licensing && !(g.license || {}).ok ? 'שליחת בקשת הצטרפות' : G('הקם את המערכת', 'הקימי את המערכת', 'הקמת המערכת'))),
-      h('p', { class: 'muted small' }, 'גוגל תבקש אישור לגישה לגיליונות, ליומן, לקבצים שהמערכת עצמה יוצרת ולשליחת מייל בשמך. המערכת לא רואה קבצים אחרים בדרייב שלך.'))
+      h('p', { class: 'muted small' }, 'גוגל תבקש אישור לגישה לגיליונות, ליומן, לקבצים שהמערכת עצמה יוצרת ולשליחת מייל בשמך. המערכת לא רואה קבצים אחרים בדרייב שלך.'),
+      window.mooncrmSignOut ? h('button', { class: 'btn ghost sm', onclick: () => window.mooncrmSignOut() }, '↩ החלפת חשבון') : null)
   ];
 }
 
@@ -2024,13 +2032,59 @@ function viewLocked(g) {
     g.contact ? h('p', null, g.contact) : null,
     g.sheetUrl ? [h('p', { class: 'muted small' }, 'האוטומציות (תזכורות, ייבוא, סנכרון) מושהות. הנתונים שלך לא נמחקו – הם בגיליון ובלוח השנה בחשבון שלך.'),
       h('a', { class: 'btn', href: g.sheetUrl, target: '_blank' }, '📄 הנתונים שלי בגיליון ↗')] : null,
-    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: recheck }, '⟳ בדיקה שוב')));
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: recheck }, '⟳ בדיקה שוב'), window.mooncrmSignOut ? h('button', { class: 'btn ghost sm', onclick: () => window.mooncrmSignOut() }, '↩ החלפת חשבון') : null));
 }
 
 function licenseBanner() {
   const a = S.data.account, lic = a.license || {};
   if (!a.licensing || !lic.ok || lic.daysLeft === null || lic.daysLeft > a.warnDays) return null;
   return h('div', { class: 'alert small' }, `⏳ הרישיון יפוג בעוד ${lic.daysLeft} ימים (${fDateY(D(lic.expires))}).`, a.contact ? ' ' + a.contact : '');
+}
+
+/** Vendor only: everyone who asked for access – approve, block, remove, pre-approve. */
+async function adminUsers() {
+  let first;
+  busy(true);
+  try { first = await call('adminUsers'); } catch (e) { return toast(e.message, true); } finally { busy(false); }
+  const ST = { 'פעיל': 'ok', 'ממתין לאישור': 'warn', 'חסום': 'danger', 'בוטל': 'gray' };
+  const addIn = h('input', { class: 'i', type: 'email', placeholder: 'מייל של חשבון גוגל', dir: 'ltr' });
+  const box = h('div');
+  const set = async (email, code) => {
+    busy(true);
+    try { paint(await call('adminSetUser', email, code)); toast('עודכן'); } catch (e) { toast(e.message, true); } finally { busy(false); }
+  };
+  const paint = res => {
+    const users = res.users || [], pend = users.filter(u => u.status === 'ממתין לאישור').length;
+    box.replaceChildren(
+      h('div', { class: 'muted small' }, `${users.length} חשבונות` + (pend ? ` · ${pend} ממתינים לאישור` : '')),
+      h('div', { class: 'card', style: 'margin-top:6px' }, users.length ? users.map(u => h('div', { class: 't-item' },
+        h('div', { class: 'grow', style: 'min-width:0' },
+          h('div', { class: 'row' }, h('b', { class: 'grow ellipsis' }, u.name || u.email),
+            h('span', { class: 'badge ' + (ST[u.status] || 'gray') }, u.owner ? 'בעלים' : u.status)),
+          h('div', { class: 'muted small ellipsis', dir: 'ltr', style: 'text-align:right' }, u.email),
+          h('div', { class: 'muted small' }, [u.seen && 'נראה לאחרונה ' + u.seen, u.expires && 'תוקף עד ' + u.expires,
+            u.terms ? 'אישר/ה תנאים' : 'עוד לא אישר/ה תנאים'].filter(Boolean).join(' · ')),
+          u.owner ? null : h('div', { class: 'actions', style: 'margin-top:6px' },
+            u.status !== 'פעיל' ? h('button', { class: 'btn sm primary', onclick: () => set(u.email, 'active') }, '✓ אישור') : null,
+            u.status !== 'חסום' ? h('button', { class: 'btn sm danger', onclick: () => set(u.email, 'blocked') }, 'חסימה') : null,
+            u.status !== 'בוטל' ? h('button', { class: 'btn sm', onclick: () => set(u.email, 'cancelled') }, 'הסרה') : null))))
+        : h('div', { class: 'empty' }, 'עוד אין משתמשים')));
+  };
+  paint(first);
+  sheet(close => [
+    h('h3', null, '👥 משתמשים'),
+    h('p', { class: 'muted small' }, 'חסימה או הסרה עוצרות את המערכת אצל המשתמש/ת תוך שעה לכל היותר. הנתונים שלהם לא נמחקים – הם בחשבון הגוגל שלהם.'),
+    box,
+    h('label', { class: 'f' }, 'אישור מראש (לפני שהם נכנסים)'),
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, addIn),
+      h('button', { class: 'btn sm primary', onclick: () => addIn.value.trim() ? set(addIn.value.trim(), 'active') : toast('צריך מייל', true) }, '+ אישור')),
+    h('div', { class: 'alert info small', style: 'margin-top:10px' },
+      'מגבלת גוגל: עד 100 חשבונות יכולים לאשר את המערכת כל עוד היא לא עברה אימות של גוגל. הספירה היא לכל חיי הפרויקט – חשבון שהוסר נשאר בספירה. הספירה המדויקת: ',
+      h('a', { href: 'https:\/\/console.cloud.google.com/auth/audience?project=mooncrm-app', target: '_blank' }, 'Google Cloud ← Audience ↗')),
+    h('div', { class: 'actions' },
+      first.sheetUrl ? h('a', { class: 'btn', href: first.sheetUrl, target: '_blank' }, '📄 גיליון המשתמשים ↗') : null,
+      h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+  ]);
 }
 
 function settingsSheet() {
@@ -2053,7 +2107,8 @@ function settingsSheet() {
       h('div', { class: 'row wrap small' }, h('span', { class: 'badge ' + ((LS[lic.status] || [])[1] || 'gray') }, (LS[lic.status] || [lic.status])[0]),
         lic.plan ? h('span', null, lic.plan) : null, lic.expires ? h('span', null, 'עד ' + fDateY(D(lic.expires))) : null,
         lic.offline ? h('span', { class: 'badge warn' }, 'לא מקוון') : null),
-      h('div', { class: 'small', style: 'margin-top:4px' }, h('a', { href: a.termsUrl, target: '_blank' }, 'תנאי השימוש ↗'))
+      h('div', { class: 'small', style: 'margin-top:4px' }, h('a', { href: a.termsUrl, target: '_blank' }, 'תנאי השימוש ↗')),
+      lic.owner ? h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => { close(); adminUsers(); } }, '👥 ניהול משתמשים')) : null
     ] : null,
 
     h('h3', { style: 'margin-top:16px' }, '🤖 ניתוח מסמכים (Gemini)'),
@@ -2071,7 +2126,11 @@ function settingsSheet() {
         if (!await ask('לתקן את המערכת? הלשוניות, היומן והאוטומציות ייבדקו וייווצרו מחדש אם חסר משהו. נתונים לא נמחקים.', 'תיקון')) return;
         await mutate('repairWorkspace'); close(); toast('✓ המערכת תוקנה');
       } }, '🔧 תיקון המערכת'),
-      h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+      h('button', { class: 'btn ghost', onclick: close }, 'סגירה')),
+    window.mooncrmSignOut ? h('div', { class: 'actions', style: 'margin-top:4px' },
+      h('button', { class: 'btn danger', onclick: async () => {
+        if (await ask('להתנתק? אפשר להתחבר מיד עם אותו חשבון או עם חשבון אחר. הנתונים נשארים בחשבון הגוגל.', 'התנתקות', 'ביטול')) window.mooncrmSignOut();
+      } }, '↩ התנתקות / החלפת חשבון')) : null
   ]);
 }
 document.getElementById('settingsBtn').addEventListener('click', () => S.data && settingsSheet());
