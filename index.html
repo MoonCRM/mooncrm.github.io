@@ -357,7 +357,7 @@ window.BRAND = {
 const S = { data: null, tab: 'today', patientId: null, view: { builtin: 'upcoming' }, showFilters: false, tableFilter: 'open', tableQ: '', schedMode: 'next' };
 let IDX = {};
 
-function call(name, ...args) {
+function callRaw(name, ...args) {
   return new Promise((resolve, reject) => {
     google.script.run
       .withSuccessHandler(r => r && r.ok ? resolve(r.data) : reject(new Error((r && r.error) || 'שגיאה')))
@@ -369,16 +369,137 @@ function call(name, ...args) {
 let busyN = 0;
 function busy(on) { busyN += on ? 1 : -1; document.getElementById('busy').classList.toggle('on', busyN > 0); }
 
+/** Reads wait until pending saves reached the server, so they never see older data. */
+async function call(name, ...args) {
+  if (Q.ops.length || Q.running) await idle();
+  return callRaw(name, ...args);
+}
+
 async function load(name, ...args) {
   busy(true);
   try { const snap = await call(name, ...args); setData(snap); return snap.result; }
   catch (e) { toast(e.message, true); throw e; }
   finally { busy(false); }
 }
-/** Mutations: returns the server result, rerenders with the fresh snapshot. */
-const mutate = (name, ...args) => load(name, ...args);
 
-function setData(snap) {
+/* ---------- saving: on screen at once, on the server in the background ----------
+ * mutate() puts the change on screen immediately (OPTIMISTIC below) and queues the server call.
+ * Calls run one at a time; each returns a fresh snapshot, and the changes still waiting are laid
+ * on top of it again. A failed save is taken off the screen with a message.
+ * Actions without a local version still run in the background, but their caller waits for the answer.
+ */
+const Q = { ops: [], base: null, running: false, waiters: [] };
+const localId = prefix => prefix + Array.from({ length: 8 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+const nowIso = () => { const x = new Date(); return dKey(x) + 'T' + fTime(x) + ':00'; };
+function idle() { return Q.ops.length || Q.running ? new Promise(r => Q.waiters.push(r)) : Promise.resolve(); }
+
+function showLocal(background) {
+  const d = JSON.parse(JSON.stringify(Q.base));
+  Q.ops.forEach(o => { if (o.patch) { try { o.patch(d); } catch (e) { console.error(e); } } });
+  setData(d, background);
+}
+
+function savingUI() {
+  const n = Q.ops.length;
+  document.getElementById('busy').classList.toggle('on', n > 0 || busyN > 0);
+  const lab = document.getElementById('syncLabel');
+  if (n) lab.textContent = '⏳ שומר…';
+  else if (S.data) lab.textContent = S.data.settings.lastSync ? 'סונכרן ' + S.data.settings.lastSync : '';
+}
+
+async function pump() {
+  if (Q.running) return;
+  Q.running = true;
+  while (Q.ops.length) {
+    const op = Q.ops[0];
+    try {
+      const snap = await callRaw(op.name, ...op.args);
+      Q.ops.shift();
+      if (snap && snap.patients) { Q.base = snap; showLocal(true); } else if (snap) { Q.ops.length = 0; setData(snap); }
+      op.done(snap ? snap.result : null);
+    } catch (e) {
+      Q.ops.shift();
+      toast('השמירה לא הצליחה: ' + e.message, true);
+      showLocal(true);
+      op.fail(e);
+    }
+    savingUI();
+  }
+  Q.running = false;
+  savingUI();
+  Q.waiters.splice(0).forEach(r => r());
+}
+
+/** Mutations. With a local version: resolves at once ({…local result, server: Promise}). Without: resolves with the server's result. */
+function mutate(name, ...args) {
+  if (!S.data) return load(name, ...args); // welcome / lock screens: as before
+  if (!Q.ops.length && !Q.running) Q.base = S.data;
+  const fn = OPTIMISTIC[name];
+  const op = { name, args, patch: fn ? d => fn(d, args) : null };
+  const server = new Promise((res, rej) => { op.done = res; op.fail = rej; });
+  let local = null;
+  if (fn) { local = fn(JSON.parse(JSON.stringify(S.data)), args) || {}; server.catch(() => {}); }
+  Q.ops.push(op);
+  if (fn) showLocal(false);
+  savingUI();
+  pump();
+  return fn ? Promise.resolve(Object.assign({}, local, { server })) : server;
+}
+window.addEventListener('beforeunload', e => { if (Q.ops.length) { e.preventDefault(); e.returnValue = ''; } });
+
+const emptyTr = () => ({ lastVisit: '', next: '', nextType: '', done: [], remaining: [], missingForms: [] });
+const dropTodo = (d, test) => { if (d.todo) { d.todo.reminders = d.todo.reminders.filter(r => !test(r)); d.todo.recalls = d.todo.recalls.filter(r => !test(r)); } };
+/** How each common action looks on screen before the server answers. May set args[…].newId once, for new records. */
+const OPTIMISTIC = {
+  saveTreatment(d, [t]) {
+    let x = t.id && d.treatments.find(y => y.id === t.id);
+    if (!x) {
+      t.newId = t.newId || localId('T');
+      x = { id: t.newId, eventId: '', confirm: '', doneAt: '', counts: 'כן', status: '' };
+      d.treatments.push(x);
+    }
+    const before = x.start;
+    ['patientId', 'course', 'type', 'tooth', 'code', 'status', 'start', 'duration', 'counts', 'notes'].forEach(k => { if (t[k] !== undefined) x[k] = t[k]; });
+    if (!x.status) x.status = x.start ? 'נקבע' : 'נדרש';
+    if (before && x.start && String(before).slice(0, 16) !== String(x.start).slice(0, 16)) x.confirm = '';
+    if (x.status === 'בוצע' && !x.doneAt) x.doneAt = nowIso();
+    if (x.status !== 'נקבע') dropTodo(d, r => r.treatmentId === x.id);
+    return { id: x.id, recallSet: '', writeBack: [] };
+  },
+  deleteTreatment(d, [id]) { d.treatments = d.treatments.filter(x => x.id !== id); dropTodo(d, r => r.treatmentId === id); },
+  confirmTreatment(d, [id, v]) { const x = d.treatments.find(y => y.id === id); if (x) x.confirm = v || ''; },
+  savePatient(d, [p]) {
+    let x = p.id && d.patients.find(y => y.id === p.id);
+    if (!x) {
+      p.newId = p.newId || localId('P');
+      x = { id: p.newId, status: 'פעיל', created: nowIso(), tr: emptyTr(), extra: {} };
+      d.patients.push(x);
+    }
+    Object.keys(p).forEach(k => { if (k !== 'id' && k !== 'newId' && k !== 'extra') x[k] = p[k]; });
+    if (p.extra) x.extra = Object.assign({}, x.extra, p.extra);
+    return { id: x.id };
+  },
+  markSent(d, [key, pid, label, channel, text]) {
+    d.sentLog.push({ key: key || 'msg:local', patientId: pid, label, at: nowIso(), channel: channel || '', text: text || '' });
+    if (key) dropTodo(d, r => r.key === key);
+  },
+  setRecall(d, [pid, date]) { const p = d.patients.find(x => x.id === pid); if (p) p.recallDate = date || ''; if (!date) dropTodo(d, r => r.patientId === pid && !r.treatmentId); },
+  toggleForm(d, [id]) { const f = d.forms.find(x => x.id === id); if (f) f.status = f.status === d.meta.fStatus.DONE ? d.meta.fStatus.MISSING : d.meta.fStatus.DONE; },
+  addForm(d, [pid, form]) { d.forms.push({ id: localId('F'), patientId: pid, form, status: d.meta.fStatus.MISSING, date: '' }); },
+  removeForm(d, [id]) { d.forms = d.forms.filter(x => x.id !== id); },
+  closePatient(d, [pid]) { const p = d.patients.find(x => x.id === pid); if (p) { p.status = 'הסתיים'; p.closedAt = nowIso(); } dropTodo(d, r => r.patientId === pid); },
+  reopenPatient(d, [pid]) { const p = d.patients.find(x => x.id === pid); if (p) { p.status = 'פעיל'; p.closedAt = ''; } },
+  activatePatient(d, [pid]) { const p = d.patients.find(x => x.id === pid); if (p) p.status = 'פעיל'; }
+};
+
+/** A background answer must not wipe what the user is typing: wait until they leave the field. */
+function typing() {
+  const a = document.activeElement, v = document.getElementById('view');
+  return a && v.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+}
+document.getElementById('view').addEventListener('focusout', () => setTimeout(() => { if (S.renderPending && !typing()) { S.renderPending = false; render(); } }, 0));
+
+function setData(snap, background) {
   if (snap.needsOnboarding || snap.locked || snap.needsTerms) { S.data = null; S.gate = snap; renderGate(); return; }
   S.gate = null;
   S.data = snap;
@@ -388,6 +509,7 @@ function setData(snap) {
   d.treatments.forEach(t => { IDX.t[t.id] = t; (IDX.tByP[t.patientId] = IDX.tByP[t.patientId] || []).push(t); });
   d.forms.forEach(f => (IDX.fByP[f.patientId] = IDX.fByP[f.patientId] || []).push(f));
   d.templates.forEach(t => IDX.tpl[t.key] = t);
+  if (background && typing()) { S.renderPending = true; return; }
   render();
 }
 
@@ -1533,8 +1655,9 @@ function viewPatient() {
     if (t.status === 'נקבע') {
       acts.push(h('button', { class: 'btn sm', onclick: async () => {
         const r = await mutate('saveTreatment', { id: t.id, status: 'בוצע' });
+        r.server.then(sr => sr && sr.recallSet && toast(`ביקורת נקבעה ל-${fDateY(D(sr.recallSet))} ונוספה ליומן`));
         const atpl = tplByTrigger('אחרי טיפול');
-        const msg = '✓ סומן כבוצע' + (r && r.recallSet ? `\nביקורת נקבעה ל-${fDateY(D(r.recallSet))} ונוספה ליומן` : '');
+        const msg = '✓ סומן כבוצע';
         if (atpl && await ask(msg + '\n\nלשלוח הודעת "' + atpl.name + '"?', '💬 כן, לניסוח', 'לא עכשיו')) composer(p.id, { templateKey: atpl.key, treatmentId: t.id });
         else if (!atpl) toast(msg);
       } }, '✓ בוצע'));
@@ -1804,11 +1927,14 @@ function treatmentEditor(p, t, opts) {
         if (payload.status === 'נקבע' && !payload.start) return toast('כדי לקבוע תור צריך תאריך ושעה', true);
         const r = await mutate('saveTreatment', payload);
         close();
-        (r && r.writeBack || []).forEach(w => toast(w.ok ? `✍️ נרשם ב"${w.source}" (${w.cell})` : `⚠️ "${w.source}": ${w.message}`, !w.ok));
+        r.server.then(sr => (sr && sr.writeBack || []).forEach(w => toast(w.ok ? `✍️ נרשם ב"${w.source}" (${w.cell})` : `⚠️ "${w.source}": ${w.message}`, !w.ok)));
         if (payload.status === 'נקבע' && (!base || !base.id || base.status !== 'נקבע')) {
           const tpl = tplByTrigger('קביעת תור');
           if (tpl && await ask('התור נקבע ונוסף ליומן ✓ לשלוח ' + ({ 'זכר': 'למטופל', 'נקבה': 'למטופלת' }[p.gender] || 'למטופל/ת') + ' הודעת אישור?', '💬 כן, לניסוח', 'לא עכשיו')) composer(p.id, { templateKey: tpl.key, treatmentId: r.id });
-        } else toast('נשמר' + (r && r.recallSet ? ` · ביקורת ב-${fDateY(D(r.recallSet))}` : ''));
+        } else {
+          toast('נשמר');
+          r.server.then(sr => sr && sr.recallSet && toast(`ביקורת ב-${fDateY(D(sr.recallSet))}`));
+        }
       } }, schedule ? 'קביעה' : 'שמירה'),
       base && base.id ? h('button', { class: 'btn danger', onclick: async () => {
         if (!await ask('למחוק את הטיפול לגמרי? (אם רק התבטל – עדיף לסמן "בוטל")', 'מחיקה')) return;
@@ -1853,7 +1979,8 @@ function sendQueue() {
   const next = () => { i++; opened = false; show(); };
   const sent = async () => {
     const it = items[i];
-    try { await call('markSent', it.key, it.pid, it.label, 'וואטסאפ', ta.value); done++; } catch (e) { return toast(e.message, true); }
+    mutate('markSent', it.key, it.pid, it.label, 'וואטסאפ', ta.value);
+    done++;
     next();
   };
   const show = async () => {
