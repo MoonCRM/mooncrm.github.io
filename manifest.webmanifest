@@ -9,6 +9,14 @@
   "background_color": "#f4f7f7",
   "theme_color": "#1d6574",
   "description": "ניהול מטופלים לסטודנטים לרפואת שיניים",
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {
+      "text": "shared",
+      "url": "shared_url"
+    }
+  },
   "icons": [
     {
       "src": "app-icon-192.png",
