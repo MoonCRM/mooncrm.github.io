@@ -599,7 +599,7 @@ function viewToday() {
     h('span', { class: 'grow' }, `🆕 ${todo.newCount} ${todo.newCount === 1 ? 'פנייה חדשה' : 'פניות חדשות'} מהטופס`), h('span', null, '←')));
 
   out.push(h('h2', null, '📲 לשליחה היום', tasks ? h('span', { class: 'count' }, tasks) : null));
-  if (tasks > 1) out.push(h('button', { class: 'btn wa block', style: 'margin-bottom:10px', onclick: sendQueue }, `▶ שליחה ברצף (${tasks})`));
+  if (tasks) out.push(h('button', { class: 'btn wa block', style: 'margin-bottom:10px', onclick: sendQueue }, tasks > 1 ? `▶ שליחה ברצף (${tasks})` : '▶ שליחה'));
   if (!tasks) out.push(h('div', { class: 'card empty' }, 'אין תזכורות לשליחה היום 🎉'));
 
   todo.reminders.forEach(r => {
