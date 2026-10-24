@@ -210,8 +210,7 @@ table.tbl { border-collapse: collapse; min-width: 980px; width: 100%; font-size:
   // Android "Share → MoonCRM" (manifest share_target): keep the text for the app, clean the address.
   (function takeShared() {
     const q = new URLSearchParams(location.search);
-    const t = [q.get('shared'), q.get('shared_url')].filter(Boolean).join('
-');
+    const t = [q.get('shared'), q.get('shared_url')].filter(Boolean).join(' ');
     if (!t) return;
     window.__moonShared = t;
     history.replaceState(null, '', location.pathname + location.hash);
