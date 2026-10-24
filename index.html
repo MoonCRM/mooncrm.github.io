@@ -207,15 +207,6 @@ table.tbl { border-collapse: collapse; min-width: 980px; width: 100%; font-size:
   };
   const redirectUri = location.origin + location.pathname.replace(/index\.html$/, '');
 
-  // Android "Share → MoonCRM" (manifest share_target): keep the text for the app, clean the address.
-  (function takeShared() {
-    const q = new URLSearchParams(location.search);
-    const t = [q.get('shared'), q.get('shared_url')].filter(Boolean).join(' ');
-    if (!t) return;
-    window.__moonShared = t;
-    history.replaceState(null, '', location.pathname + location.hash);
-  })();
-
   // 1. Back from Google: #access_token=…&state=…
   (function takeToken() {
     const raw = location.hash.slice(1);
@@ -1613,7 +1604,6 @@ function viewPatient() {
 
     isClosed ? null : h('div', { class: 'actions', style: 'margin:0 0 6px' },
       h('button', { class: 'btn wa', onclick: () => composer(p.id, {}) }, '💬 הודעה'),
-      d.settings.aiReplies ? h('button', { class: 'btn', onclick: () => replySheet(p) }, '🤖 הצעת תשובה') : null,
       h('button', { class: 'btn primary', onclick: () => treatmentEditor(p, null, { schedule: true }) }, '📅 קביעת תור'),
       h('button', { class: 'btn', onclick: () => treatmentEditor(p, null) }, '+ טיפול נדרש')),
 
@@ -1896,56 +1886,6 @@ function sendQueue() {
   sheet(close => [h('h3', null, '▶ שליחה ברצף'), box,
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onclick: () => { document.removeEventListener('visibilitychange', onVis); close(); load('bootstrap'); } }, 'סגירה'))]);
   show();
-}
-
-/** Opt-in: paste (or share, on Android) a patient's WhatsApp message → a suggested reply. */
-function replySheet(p, presetText) {
-  const d = S.data;
-  const patients = d.patients.filter(x => !closed(x)).sort((a, b) => String(a.name).localeCompare(String(b.name), 'he'));
-  let pid = p ? p.id : guessPatient(presetText || '');
-  const pick = p ? null : h('select', { class: 'i', onchange: e => { pid = e.target.value; } },
-    opt('', '— למי ההודעה? —'), patients.map(x => opt(x.id, x.name, x.id === pid)));
-  const msg = h('textarea', { class: 'i', placeholder: 'להדביק כאן את ההודעה מהמטופל/ת', value: presetText || '' });
-  const out = h('div');
-  const run = async () => {
-    if (!pid) return toast('צריך לבחור מטופל/ת', true);
-    if (!msg.value.trim()) return toast('צריך להדביק הודעה', true);
-    out.replaceChildren(h('div', { class: 'empty' }, '🤖 מנסח…'));
-    busy(true);
-    let r;
-    try { r = await call('suggestReply', pid, msg.value); } catch (e) { out.replaceChildren(); return toast(e.message, true); } finally { busy(false); }
-    const ans = h('textarea', { class: 'i', style: 'min-height:110px', value: r.reply });
-    const wa = h('a', { class: 'btn wa', target: '_blank' }, '💬 פתיחה בוואטסאפ');
-    const sync = () => { wa.href = `https:\/\/wa.me/${r.phone || ''}?text=${encodeURIComponent(ans.value)}`; };
-    ans.oninput = sync; sync();
-    const t = r.treatmentId ? IDX.t[r.treatmentId] : null, who = IDX.p[pid];
-    const act = { confirm: t && h('button', { class: 'btn sm', onclick: () => mutate('confirmTreatment', t.id, CONFIRM.YES).then(() => toast('✓ סומן שאישר/ה הגעה')) }, '✓ לסמן שאישר/ה הגעה'),
-      reschedule: t && h('button', { class: 'btn sm', onclick: async () => { await mutate('confirmTreatment', t.id, CONFIRM.LATER); treatmentEditor(who, IDX.t[t.id] || t); } }, '🔄 להזיז את התור'),
-      cancel: t && h('button', { class: 'btn sm danger', onclick: async () => { if (await ask('לבטל את התור?', 'כן, לבטל', 'לא')) mutate('saveTreatment', { id: t.id, status: 'בוטל' }); } }, '✗ לבטל את התור') }[r.intent];
-    out.replaceChildren(...[
-      r.summary ? h('div', { class: 'muted small', style: 'margin-top:8px' }, 'המטופל/ת: ' + r.summary) : null,
-      h('label', { class: 'f' }, 'הצעה (אפשר לערוך)'), ans,
-      h('div', { class: 'actions' }, wa, act || null,
-        h('button', { class: 'btn ghost', onclick: () => call('markSent', '', pid, '🤖 תשובה', 'וואטסאפ', ans.value).then(() => toast('נשמר בהיסטוריה')) }, '✓ נשלח'))].filter(Boolean));
-  };
-  sheet(close => [
-    h('h3', null, '🤖 הצעת תשובה' + (p ? ' – ' + p.name : '')),
-    pick,
-    msg,
-    h('p', { class: 'muted small' }, 'נשלח ל-Gemini רק תוכן ההודעה – בלי שם, טלפון, ת"ז ומייל – יחד עם פרטי התור הבא. ההצעה לא נשלחת לבד: את/ה מאשר/ת בוואטסאפ.'),
-    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: run }, '🤖 הצעה'), h('button', { class: 'btn ghost', onclick: close }, 'סגירה')),
-    out
-  ]);
-}
-
-/** A shared WhatsApp text often carries the sender's name or number: pick that patient when it's clear. */
-function guessPatient(text) {
-  const digits = String(text).replace(/\D/g, '');
-  const hits = S.data.patients.filter(x => {
-    const ph = String(x.phone || '').replace(/\D/g, '').replace(/^0/, '');
-    return (ph.length >= 8 && digits.includes(ph)) || (x.name && String(text).includes(x.name));
-  });
-  return hits.length === 1 ? hits[0].id : '';
 }
 
 function composer(pid, o) {
@@ -2248,14 +2188,6 @@ function settingsSheet() {
       h('span', { class: 'grow' }, 'התראה בבוקר כשיש הודעות לשלוח (דרך יומן גוגל) בשעה'),
       h('select', { class: 'i', style: 'width:auto', onchange: e => mutate('saveSettings', { digestHour: e.target.value }) },
         [7, 8, 9, 10, 11, 12].map(x => opt(String(x), x + ':00', x === s.digestHour)))),
-    h('label', { class: 'row small', style: 'margin-top:8px;align-items:flex-start' },
-      h('input', { type: 'checkbox', checked: s.aiReplies, style: 'margin-top:3px', onchange: async e => {
-        const on = e.target.checked;
-        if (on && !await ask('להפעיל הצעות תשובה עם AI?\n\nכשמדביקים הודעה של מטופל/ת, תוכן ההודעה (בלי שם, טלפון, ת"ז ומייל) ופרטי התור הבא נשלחים ל-Gemini של גוגל כדי לנסח תשובה. בשכבה החינמית גוגל עשויה להשתמש בתוכן לשיפור השירותים שלה. אפשר לכבות בכל רגע.', 'כן, להפעיל', 'לא')) { e.target.checked = false; return; }
-        await mutate('saveSettings', { aiReplies: on ? 'כן' : '' }); toast(on ? '✓ הצעות תשובה פעילות – בכרטיס המטופל' : 'כובה');
-      } }),
-      h('span', null, 'הצעת תשובות עם AI להודעות וואטסאפ שאני מדביק/ה או משתף/ת ', h('span', { class: 'muted' }, '(כבוי כברירת מחדל)'))),
-
     h('h3', { style: 'margin-top:16px' }, '🤖 ניתוח מסמכים (Gemini)'),
     h('div', { class: 'row small' }, h('span', { class: 'grow' }, s.aiKeyShared ? '✓ מחובר (מפתח משותף של המערכת)' : s.hasAiKey ? '✓ מחובר' : 'לא מחובר'),
       s.hasAiKey && !s.aiKeyShared
@@ -2298,11 +2230,6 @@ document.getElementById('settingsBtn').addEventListener('click', () => S.data &&
     }, 20000);
     load('bootstrap').then(() => {
       clearTimeout(slow);
-      if (window.__moonShared && S.data) {
-        const txt = window.__moonShared; window.__moonShared = '';
-        if (S.data.settings.aiReplies) return replySheet(null, txt);
-        toast('כדי לקבל הצעת תשובה צריך להפעיל "הצעת תשובות עם AI" ב-⚙️ הגדרות');
-      }
       if (m && IDX.p[m[1]]) openPatient(m[1]);
       else if (t) go(t[1]);
     }).catch(() => document.getElementById('view').replaceChildren(h('div', { class: 'card empty' }, 'הטעינה נכשלה. ' + G('נסה', 'נסי', 'כדאי') + ' לרענן את הדף.')));
