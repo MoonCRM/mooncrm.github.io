@@ -178,6 +178,7 @@ table.tbl { border-collapse: collapse; min-width: 980px; width: 100%; font-size:
   <header class="top">
     <h1><img id="brandIcon" alt="">MoonCRM</h1>
     <span class="sync" id="syncLabel"></span>
+    <button class="btn sm" id="guideBtn" title="מדריך">❓</button>
     <button class="btn sm" id="syncBtn" title="ייבוא מהטופס וסנכרון מהיומן">⟳</button>
     <button class="btn sm" id="settingsBtn" title="הגדרות">⚙️</button>
   </header>
@@ -762,12 +763,14 @@ function afterMove(r) {
   ]);
 }
 
+const GUIDE_URL = 'https:\/\/mooncrm.github.io/guide.html';
+
 /** "First steps" card until everything is set up (or the user hides it). */
 function firstSteps() {
   const d = S.data, s = d.settings;
   if (s.checklistHidden) return null;
   const steps = [
-    [d.patients.length > 0, 'להוסיף מטופל/ת ראשון/ה', 'הוספה', () => patientEditor()],
+    [d.patients.length > 0, 'להכניס מטופלים – רשימה קיימת או אחד/ת אחד/ת', 'ייבוא', () => patientImportDialog()],
     [s.hasForm, 'לחבר את טופס הקבלה – פניות חדשות ייכנסו לבד', 'איך?', formHelp],
     [(d.sources || []).length > 0, 'לחבר טבלת תורנויות משותפת (אם יש)', 'חיבור', sourcesDialog],
     [s.aiPersonal, 'להפעיל AI אישי – לניתוח קובצי דרישות', 'הפעלה', () => personalAiDialog()],
@@ -780,11 +783,13 @@ function firstSteps() {
     steps.map(([ok, label, btn, fn]) => h('div', { class: 'form-row' + (ok ? ' done' : '') },
       h('span', { style: 'width:20px' }, ok ? '✅' : '⬜'), h('span', { class: 'grow' }, label),
       ok ? null : h('button', { class: 'btn sm', onclick: fn }, btn))),
-    h('div', { class: 'actions' }, h('button', { class: 'btn ghost sm', onclick: () => mutate('saveSettings', { checklistHidden: 'כן' }) }, 'הסתרה')));
+    h('div', { class: 'actions' },
+      h('a', { class: 'btn sm', href: GUIDE_URL, target: '_blank' }, '❓ מדריך למשתמש'),
+      h('button', { class: 'btn ghost sm', onclick: () => mutate('saveSettings', { checklistHidden: 'כן' }) }, 'הסתרה')));
 }
 
 function viewToday() {
-  const d = S.data, todo = d.todo, out = [licenseBanner(), sharedBanner(), firstSteps()];
+  const d = S.data, todo = d.todo, out = [licenseBanner(), sharedBanner(), pendingImportsCard(), firstSteps()];
   const tasks = todo.reminders.length + todo.recalls.length;
 
   if (todo.newCount) out.push(h('div', { class: 'pill-new', onclick: () => go('table', { tableFilter: 'new' }) },
@@ -987,6 +992,7 @@ function viewTable() {
   return [
     h('div', { class: 'row', style: 'margin-bottom:8px' }, h('div', { class: 'grow' }, search),
       h('button', { class: 'btn', title: 'בחירת עמודות', onclick: columnsDialog }, '☰'),
+      h('button', { class: 'btn', title: 'ייבוא רשימת מטופלים מ-Excel או מגיליון', onclick: () => patientImportDialog() }, '📥'),
       h('button', { class: 'btn primary', onclick: () => patientEditor() }, '+ מטופל/ת')),
     h('div', { class: 'chips', style: 'margin-bottom:10px' },
       chip('open', 'פתוחים'), chip('new', `פניות חדשות${newCount ? ` (${newCount})` : ''}`), chip('done', 'הסתיימו'), chip('all', 'הכול'),
@@ -1524,7 +1530,7 @@ function aiKeyDialog(onDone) {
   ]);
 }
 
-function uploadFlow() {
+function uploadFlow(prefillUrl) {
   const st = { file: null, res: null, answers: {}, mode: 'merge', working: false };
   const box = h('div');
   const input = h('input', { type: 'file', class: 'i', accept: '.xlsx,.xls,.csv,.docx,.doc,.pptx,.ppt' });
@@ -1541,7 +1547,7 @@ function uploadFlow() {
     } catch (e) { toast(e.message, true); }
     finally { st.working = false; busy(false); paint(); }
   };
-  const linkIn = h('input', { class: 'i', placeholder: 'קישור לגיליון בדרייב – docs.google.com/spreadsheets/…' });
+  const linkIn = h('input', { class: 'i', dir: 'ltr', placeholder: 'קישור לגיליון בדרייב – docs.google.com/spreadsheets/…', value: typeof prefillUrl === 'string' ? prefillUrl : '' });
   const runAnalyze = async (getFile, again) => {
     st.working = true; paint(); busy(true);
     try {
@@ -1636,6 +1642,109 @@ function uploadFlow() {
   }
 
   sheet(close => { closeSheet = close; paint(); return [h('h3', null, '⬆️ העלאת קובץ דרישות'), box]; });
+}
+
+/* ---------- existing patient list: Excel / CSV / Google Sheet → patients ---------- */
+
+const phoneKey = p => { let d = String(p || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('00')) d = d.slice(2); if (d[0] === '0') d = '972' + d.slice(1); else if (/^5\d{8}$/.test(d)) d = '972' + d; return d; };
+
+function patientImportDialog(prefillUrl) {
+  const st = { res: null, si: 0, map: {}, status: 'פעיל', working: false };
+  const box = h('div');
+  const input = h('input', { type: 'file', class: 'i', accept: '.xlsx,.xls,.csv' });
+  const linkIn = h('input', { class: 'i', dir: 'ltr', placeholder: 'קישור לגיליון בדרייב – docs.google.com/spreadsheets/…', value: prefillUrl || '' });
+  let closeSheet = () => {};
+
+  const read = async getFile => {
+    st.working = true; paint(); busy(true);
+    try {
+      st.res = await call('previewPatientImport', await getFile());
+      pick(0);
+    } catch (e) { toast(e.message, true); }
+    finally { st.working = false; busy(false); paint(); }
+  };
+  const pick = i => { st.si = i; st.map = Object.assign({}, st.res.sheets[i].map); };
+  const sh = () => st.res.sheets[st.si];
+  const mapped = () => sh().rows.map(row => {
+    const o = {};
+    Object.keys(st.map).forEach(f => { if (st.map[f] !== '' && st.map[f] !== undefined) o[f] = row[st.map[f]] || ''; });
+    o.fullName = (o.name || [o.firstName, o.lastName].filter(Boolean).join(' ')).trim();
+    return o;
+  });
+  const doImport = async list => {
+    st.working = true; paint();
+    try {
+      const r = await mutate('importPatients', list.map(o => { const x = Object.assign({}, o); delete x.fullName; return x; }), st.status);
+      closeSheet();
+      toast(`✓ נוספו ${r.added} מטופלים` + (r.skipped ? ` · ${r.skipped} כבר היו במערכת` : ''));
+    } catch (e) { toast(e.message, true); st.working = false; paint(); }
+  };
+
+  function preview() {
+    const s = sh(), list = mapped(), named = list.filter(o => o.fullName);
+    const have = new Set(S.data.patients.map(p => phoneKey(p.phone)).filter(Boolean)), names = new Set(S.data.patients.map(p => String(p.name).trim()));
+    const fresh = named.filter(o => { const k = phoneKey(o.phone); return k ? !have.has(k) : !names.has(o.fullName); });
+    const colOpts = f => [opt('', '— לא לייבא —', st.map[f] === undefined || st.map[f] === '')]
+      .concat(s.headers.map((t, i) => t ? opt(String(i), t, String(st.map[f]) === String(i)) : null));
+    const noName = st.map.name === undefined && st.map.firstName === undefined;
+    return [
+      st.res.sheets.length > 1 ? [h('label', { class: 'f' }, 'הלשונית ברשימה'),
+        h('select', { class: 'i', onchange: e => { pick(Number(e.target.value)); paint(); } },
+          st.res.sheets.map((x, i) => opt(String(i), `${x.name} (${x.rows.length} שורות)`, i === st.si)))] : null,
+      h('p', { class: 'muted small' }, `שורת הכותרות: ${s.headerRow} · ${s.rows.length} שורות. המערכת ניחשה איזו עמודה היא מה – אפשר לתקן:`),
+      h('div', { class: 'card small' }, st.res.fields.map(([f, label]) => h('div', { class: 'form-row' },
+        h('span', { class: 'grow' }, label),
+        h('select', { onchange: e => { if (e.target.value === '') delete st.map[f]; else st.map[f] = Number(e.target.value); paint(); } }, colOpts(f))))),
+      noName ? h('div', { class: 'alert small' }, 'צריך לבחור את עמודת השם (שם מלא, או שם פרטי + שם משפחה)') : [
+        h('h3', { style: 'margin-top:10px' }, 'דוגמה'),
+        h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' },
+          h('thead', null, h('tr', null, h('th', null, 'שם'), h('th', null, 'טלפון'), h('th', null, 'פרטים נוספים'))),
+          h('tbody', null, named.slice(0, 5).map(o => h('tr', null, h('td', null, o.fullName), h('td', null, o.phone || ''),
+            h('td', { class: 'muted small' }, ['email', 'idNumber', 'gender', 'hmo', 'courses', 'notes'].map(k => o[k]).filter(Boolean).join(' · '))))))),
+        h('label', { class: 'f' }, 'הסטטוס שלהם במערכת'),
+        h('div', { class: 'seg' },
+          h('button', { class: st.status === 'פעיל' ? 'on' : '', onclick: () => { st.status = 'פעיל'; paint(); } }, 'מטופלים פעילים'),
+          h('button', { class: st.status === 'פנייה חדשה' ? 'on' : '', onclick: () => { st.status = 'פנייה חדשה'; paint(); } }, 'פניות חדשות (לבדיקה)')),
+        h('div', { class: 'alert calm small', style: 'margin-top:8px' },
+          `ייווספו ${fresh.length} מטופלים.` + (named.length - fresh.length ? ` ${named.length - fresh.length} כבר נמצאים במערכת ולא ייכפלו.` : '') +
+          (list.length - named.length ? ` ${list.length - named.length} שורות בלי שם ידלגו.` : ''))
+      ],
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.working || noName || !fresh.length, onclick: () => doImport(named) }, st.working ? 'מייבא…' : `✓ ייבוא ${fresh.length} מטופלים`),
+        h('button', { class: 'btn ghost', onclick: () => { st.res = null; paint(); } }, 'קובץ אחר'))
+    ];
+  }
+
+  function paint() {
+    box.replaceChildren(...[].concat(st.res ? preview() : [
+      h('p', null, 'יש לך כבר רשימת מטופלים בטבלה? אפשר להכניס את כולם בבת אחת. המערכת מזהה את העמודות (שם, טלפון, מייל…) ומראה דוגמה – שום דבר לא נשמר לפני האישור, ומי שכבר במערכת (אותו טלפון) לא ייכפל.'),
+      h('label', { class: 'f' }, 'קובץ מהמחשב (Excel או CSV)'), input,
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', disabled: st.working,
+        onclick: () => input.files[0] ? read(() => readFileForUpload(input.files[0])) : toast(G('בחר קובץ', 'בחרי קובץ', 'צריך לבחור קובץ'), true) }, st.working ? 'קורא…' : 'קריאת הקובץ')),
+      h('div', { class: 'muted', style: 'text-align:center;margin:10px 0' }, '— או גיליון שכבר נמצא בדרייב —'),
+      linkIn,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', disabled: st.working, onclick: () => linkIn.value.trim() ? read(() => ({ url: linkIn.value.trim() })) : toast('צריך להדביק קישור לגיליון', true) }, st.working ? 'קורא…' : 'קריאה מהדרייב'),
+        h('button', { class: 'btn ghost', onclick: () => closeSheet() }, 'ביטול'))
+    ]).flat(9).filter(Boolean));
+  }
+
+  sheet(close => { closeSheet = close; paint(); return [h('h3', null, '📥 ייבוא רשימת מטופלים'), box]; });
+}
+
+/** Links given at sign-up (patient list / requirements file): offered once the system is ready. */
+function pendingImportsCard() {
+  const p = S.data.settings.pendingImports || {};
+  if (!p.patients && !p.requirements) return null;
+  const skip = kind => mutate('clearPendingImport', kind).catch(e => toast(e.message, true));
+  return h('div', { class: 'card', style: 'border-inline-start:4px solid var(--brand)' },
+    h('b', null, '📥 מההרשמה – להשלים את הייבוא'),
+    p.patients ? h('div', { class: 'form-row' }, h('span', { class: 'grow' }, 'רשימת המטופלים שקישרת'),
+      h('button', { class: 'btn sm primary', onclick: () => patientImportDialog(p.patients) }, 'ייבוא'),
+      h('button', { class: 'btn ghost sm', onclick: () => skip('patients') }, 'לא צריך')) : null,
+    p.requirements ? h('div', { class: 'form-row' }, h('span', { class: 'grow' }, 'קובץ הקורסים והדרישות שקישרת'),
+      h('button', { class: 'btn sm primary', onclick: () => uploadFlow(p.requirements) }, 'ניתוח'),
+      h('button', { class: 'btn ghost sm', onclick: () => skip('requirements') }, 'לא צריך')) : null);
 }
 
 /* ================= screen 3: templates ================= */
@@ -1975,6 +2084,28 @@ function treatmentEditor(p, t, opts) {
   const writeChk = h('input', { type: 'checkbox', checked: !opts.fromTable });
   const notes = h('input', { class: 'i' });
   const myCourses = String(p.courses || '').split(/,\s*/).filter(Boolean);
+  // Free slots in the shared table(s) the app writes to: one tap fills date + time.
+  const slotBox = h('div');
+  const pickSlot = (s, btn) => {
+    const sd = D(s.start);
+    date.value = dKey(sd); time.value = fTime(sd); status.value = 'נקבע'; writeChk.checked = true;
+    slotBox.querySelectorAll('.chip.on').forEach(x => x.classList.remove('on')); btn.classList.add('on');
+  };
+  const loadSlots = async () => {
+    slotBox.replaceChildren(h('div', { class: 'muted small' }, 'בודק בטבלה…'));
+    let res;
+    try { res = await call('freeSlots'); } catch (e) { slotBox.replaceChildren(); return toast(e.message, true); }
+    slotBox.replaceChildren(...res.map(src => h('div', { class: 'card small', style: 'margin:6px 0' },
+      h('b', null, src.name),
+      src.error ? h('div', { class: 'muted' }, '⚠️ ' + src.error)
+        : src.list ? h('div', { class: 'muted' }, 'הטבלה הזו היא רשימה – כל מועד מתאים, ותתווסף שורה בסופה.')
+        : !src.slots.length ? h('div', { class: 'muted' }, 'אין משבצות פנויות ב-12 השבועות הקרובים.')
+        : [h('div', { class: 'chips', style: 'flex-wrap:wrap;margin-top:6px' }, src.slots.map(s => {
+            const sd = D(s.start), b = h('button', { class: 'chip', title: s.note || '', onclick: () => pickSlot(s, b) }, `${fDay(sd)} ${fTime(sd)}`);
+            return b;
+          })),
+          h('div', { class: 'muted small', style: 'margin-top:4px' }, 'משבצות ריקות בלבד. תורנויות, חופשים, משבצות כפולות ותאים צבועים בצבע של מישהו אחר לא מוצגים.')])));
+  };
   const courseOpts = Array.from(new Set(myCourses.concat(d.courses)));
 
   function fill() {
@@ -2008,6 +2139,7 @@ function treatmentEditor(p, t, opts) {
     h('div', { class: 'two' },
       h('div', null, h('label', { class: 'f' }, 'תאריך'), date),
       h('div', null, h('label', { class: 'f' }, 'שעה'), time)),
+    writers.length ? [h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: loadSlots }, '🗓 משבצות פנויות בטבלה המשותפת'), slotBox] : null,
     h('div', { class: 'two' },
       h('div', null, h('label', { class: 'f' }, 'משך (דקות)'), dur),
       h('div', null, h('label', { class: 'f' }, 'סטטוס'), status)),
@@ -2260,7 +2392,7 @@ function termsCheck(st, g) {
 function viewOnboarding(g) {
   const d = g.draft || {};
   const st = S.onb = S.onb || { name: d.senderName || '', clinic: d.clinicLocation || '', url: d.existingUrl || '', restore: !!d.existingUrl, terms: false,
-    courses: d.courses || [], cName: '', cYear: '' };
+    courses: d.courses || [], cName: '', cYear: '', patientsUrl: d.patientsUrl || '', requirementsUrl: d.requirementsUrl || '' };
   if (S.onboardGender === undefined && d.userGender !== undefined) S.onboardGender = d.userGender;
   const field = (k, attrs) => h('input', Object.assign({ class: 'i', value: st[k], oninput: e => { st[k] = e.target.value; } }, attrs));
   const go = async allowShared => {
@@ -2272,7 +2404,8 @@ function viewOnboarding(g) {
     let shared = 0;
     try {
       const snap = await call('requestAccess', { senderName: st.name, userGender: S.onboardGender || '', clinicLocation: st.clinic,
-        existingUrl: st.restore ? st.url : '', allowShared: !!allowShared, courses: st.courses, acceptTerms: true });
+        existingUrl: st.restore ? st.url : '', allowShared: !!allowShared, courses: st.courses, acceptTerms: true,
+        patientsUrl: st.patientsUrl.trim(), requirementsUrl: st.requirementsUrl.trim() });
       S.onb = null; setData(snap);
       if (snap.patients) toast('✓ המערכת מוכנה');
     } catch (e) {
@@ -2312,8 +2445,13 @@ function viewOnboarding(g) {
         h('button', { class: st.restore ? 'on' : '', onclick: () => { st.restore = true; renderGate(); } }, 'יש לי כבר גיליון מטופלים')),
       h('p', { class: 'muted small', style: 'margin:6px 0 0' }, st.restore
         ? 'MoonCRM תוסיף את הלשוניות שלה (מטופלים, טיפולים, הגדרות…) לגיליון שלך, בלי לגעת בלשוניות הקיימות. לא לחבר גיליון שמשותף עם אחרים – הם יראו את פרטי המטופלים. זה גם הגיליון שאליו מקשרים את טופס הקבלה.'
-        : 'MoonCRM תיצור בדרייב שלך גיליון פרטי חדש בשם "MoonCRM" לניהול המטופלים – רק את/ה רואה אותו. אליו גם מקשרים אחר כך את טופס הקבלה. רשימת מטופלים קיימת אפשר לייבא אחרי ההקמה.'),
+        : 'MoonCRM תיצור בדרייב שלך גיליון פרטי חדש בשם "MoonCRM" לניהול המטופלים – רק את/ה רואה אותו. אליו גם מקשרים אחר כך את טופס הקבלה.'),
       st.restore ? field('url', { placeholder: 'קישור לגיליון ניהול המטופלים: https:\/\/docs.google.com/spreadsheets/d/…', dir: 'ltr' }) : null,
+      h('label', { class: 'f', style: 'margin-top:12px' }, 'יש לך כבר קבצים? (לא חובה)'),
+      h('p', { class: 'muted small', style: 'margin:0 0 4px' }, 'קישורים לגיליונות בדרייב. מיד אחרי ההקמה המערכת תציע לייבא אותם, ותראה מה זוהה לפני ששומרים. קובץ Excel מהמחשב – אפשר להעלות אחרי ההקמה.'),
+      field('patientsUrl', { placeholder: 'רשימת מטופלים קיימת – קישור', dir: 'ltr' }),
+      h('div', { style: 'height:6px' }),
+      field('requirementsUrl', { placeholder: 'קובץ הקורסים והדרישות – קישור', dir: 'ltr' }),
       termsCheck(st, g),
       h('div', { class: 'actions' },
         h('button', { class: 'btn primary block', disabled: st.working, onclick: () => go(false) },
@@ -2464,6 +2602,7 @@ function settingsSheet() {
   ]);
 }
 document.getElementById('settingsBtn').addEventListener('click', () => S.data && settingsSheet());
+document.getElementById('guideBtn').addEventListener('click', () => window.open(GUIDE_URL, '_blank'));
 
 /* ================= boot ================= */
 (function boot() {
