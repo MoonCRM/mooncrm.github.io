@@ -680,15 +680,85 @@ function applySpec(spec) {
 function formHelp() {
   sheet(close => [
     h('h3', null, '📝 חיבור טופס הקבלה'),
-    h('p', null, 'פניות חדשות נכנסות לבד ל"מטופלים" ברגע שהטופס שולח את התשובות לגיליון של המערכת:'),
+    h('p', null, 'פניות חדשות נכנסות לבד למסך "מטופלים" ברגע שהטופס שולח את התשובות ל', h('b', null, 'גיליון ניהול המטופלים'), ' שלך – הגיליון של המערכת:'),
+    h('div', { class: 'card small' }, '📄 ', h('b', null, S.data.settings.sheetName || 'MoonCRM'), ' ', h('a', { href: S.data.settings.sheetUrl, target: '_blank' }, 'פתיחה ↗')),
     h('ol', { style: 'padding-inline-start:20px;margin:6px 0' },
       h('li', null, 'לפתוח את הטופס ב-Google Forms (מצב עריכה)'),
       h('li', null, 'לשונית "תגובות" ← "קישור ל-Sheets"'),
-      h('li', null, '"בחירת גיליון אלקטרוני קיים" ← לבחור את "MoonCRM"'),
+      h('li', null, '"בחירת גיליון אלקטרוני קיים" ← לבחור את "', h('b', null, S.data.settings.sheetName || 'MoonCRM'), '" (לא גיליון אחר)'),
       h('li', null, 'לחזור לכאן וללחוץ ⟳ למעלה')),
     h('p', { class: 'muted small' }, 'אם הטופס כבר מחובר לגיליון אחר – אפשר לנתק אותו שם ולחבר מחדש. התשובות הישנות נשארות בגיליון הישן.'),
     h('div', { class: 'actions' }, h('a', { class: 'btn', href: S.data.settings.sheetUrl, target: '_blank' }, '📄 הגיליון של המערכת ↗'),
       h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+  ]);
+}
+
+/** The system's spreadsheet is visible to other people: patient details are exposed. */
+function sharedBanner() {
+  const n = S.data.settings.sharedWith;
+  if (!n) return null;
+  return h('div', { class: 'alert' },
+    h('b', null, `⚠️ גיליון המערכת "${S.data.settings.sheetName}" משותף עם ${n} אנשים נוספים`),
+    h('div', null, 'הם יכולים לראות את פרטי המטופלים. כדאי להעביר את המערכת לגיליון פרטי – הנתונים עוברים איתך.'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary sm', onclick: () => moveSheetDialog('new') }, 'מעבר לגיליון פרטי')));
+}
+
+/** Move the system to a new private spreadsheet, or into the user's own patient sheet. */
+function moveSheetDialog(initial) {
+  const s = S.data.settings;
+  let mode = initial || 'new';
+  const url = h('input', { class: 'i', dir: 'ltr', placeholder: 'קישור לגיליון ניהול המטופלים שלך' });
+  const box = h('div');
+  const paint = () => box.replaceChildren(...[
+    h('div', { class: 'seg' },
+      h('button', { class: mode === 'new' ? 'on' : '', onclick: () => { mode = 'new'; paint(); } }, 'גיליון חדש ופרטי (מומלץ)'),
+      h('button', { class: mode === 'existing' ? 'on' : '', onclick: () => { mode = 'existing'; paint(); } }, 'גיליון מטופלים קיים שלי')),
+    mode === 'existing'
+      ? [h('label', { class: 'f' }, 'קישור לגיליון'), url,
+         h('p', { class: 'muted small' }, 'MoonCRM תוסיף לגיליון את הלשוניות שלה; הלשוניות הקיימות לא ישתנו. אם זה כבר גיליון של MoonCRM – הנתונים שבו נשמרים.')]
+      : h('p', { class: 'muted small' }, 'ייווצר בדרייב שלך גיליון חדש בשם "MoonCRM" – רק את/ה רואה אותו.')
+  ].flat().filter(Boolean));
+  paint();
+  const run = async (close, allowShared) => {
+    if (mode === 'existing' && !url.value.trim()) return toast('צריך להדביק קישור', true);
+    let snap;
+    busy(true);
+    try { snap = await call('moveWorkspace', { mode, url: url.value.trim(), allowShared }); }
+    catch (e) {
+      busy(false);
+      const m = String(e.message).match(/^SHARED:(\d+)/);
+      if (!m) return toast(e.message, true);
+      if (await ask(`הגיליון משותף עם ${m[1]} אנשים נוספים – הם יראו את פרטי המטופלים. להשתמש בו בכל זאת?`, 'כן, להמשיך', 'ביטול')) return run(close, true);
+      return;
+    }
+    busy(false);
+    close(); setData(snap); toast('✓ המערכת עברה לגיליון "' + snap.settings.sheetName + '"');
+    afterMove(snap.result);
+  };
+  sheet(close => [
+    h('h3', null, '📄 גיליון ניהול המטופלים'),
+    h('p', null, 'כרגע: ', h('a', { href: s.sheetUrl, target: '_blank' }, s.sheetName || 'MoonCRM'), s.sharedWith ? ` – משותף עם ${s.sharedWith} אנשים נוספים` : ''),
+    box,
+    h('p', { class: 'muted small' }, 'כל המטופלים, התורים, הדרישות וההגדרות עוברים לגיליון החדש. היומן נשאר אותו יומן. אם טופס הקבלה מקושר לגיליון הנוכחי – אחרי ההעברה צריך לקשר אותו לגיליון החדש.'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => run(close, false) }, 'העברה'), h('button', { class: 'btn ghost', onclick: close }, 'ביטול'))
+  ]);
+}
+
+function afterMove(r) {
+  if (!r || !r.oldId) return;
+  sheet(close => [
+    h('h3', null, '✓ המערכת בגיליון החדש'),
+    h('p', null, `הלשוניות של MoonCRM עדיין נמצאות גם בגיליון הקודם "${r.oldName}"` +
+      (r.otherTabs && r.otherTabs.length ? ` – לצד ${r.otherTabs.map(x => '"' + x + '"').join(', ')}, שלא ייגעו בהן` : '') + '. להסיר אותן משם?'),
+    h('p', { class: 'muted small' }, 'מוסרות רק הלשוניות של MoonCRM (מטופלים, טיפולים, הגדרות, לוג…). הנתונים כבר הועתקו לגיליון החדש.'),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn danger', onclick: async () => {
+        busy(true);
+        try { const x = await call('cleanOldWorkspace', r.oldId); toast(`✓ הוסרו ${x.removed.length} לשוניות מ"${x.name}"`); close(); }
+        catch (e) { toast(e.message, true); } finally { busy(false); }
+      } }, 'הסרה מהגיליון הקודם'),
+      h('a', { class: 'btn', href: r.oldUrl, target: '_blank' }, 'פתיחת הגיליון הקודם ↗'),
+      h('button', { class: 'btn ghost', onclick: close }, 'לא עכשיו'))
   ]);
 }
 
@@ -700,7 +770,7 @@ function firstSteps() {
     [d.patients.length > 0, 'להוסיף מטופל/ת ראשון/ה', 'הוספה', () => patientEditor()],
     [s.hasForm, 'לחבר את טופס הקבלה – פניות חדשות ייכנסו לבד', 'איך?', formHelp],
     [(d.sources || []).length > 0, 'לחבר טבלת תורנויות משותפת (אם יש)', 'חיבור', sourcesDialog],
-    [s.hasAiKey, 'לחבר Gemini – כדי שקובצי דרישות ינותחו', 'חיבור', () => aiKeyDialog()],
+    [s.aiPersonal, 'להפעיל AI אישי – לניתוח קובצי דרישות', 'הפעלה', () => personalAiDialog()],
     [d.courses.length > 0, 'להעלות את דרישות הקורסים', 'העלאה', uploadFlow]
   ];
   const done = steps.filter(x => x[0]).length;
@@ -714,7 +784,7 @@ function firstSteps() {
 }
 
 function viewToday() {
-  const d = S.data, todo = d.todo, out = [licenseBanner(), firstSteps()];
+  const d = S.data, todo = d.todo, out = [licenseBanner(), sharedBanner(), firstSteps()];
   const tasks = todo.reminders.length + todo.recalls.length;
 
   if (todo.newCount) out.push(h('div', { class: 'pill-new', onclick: () => go('table', { tableFilter: 'new' }) },
@@ -1403,6 +1473,35 @@ function readFileForUpload(file) {
   });
 }
 
+/** Personal Gemini key in the user's own account: one manual "accept terms" at Google, then automatic. */
+function personalAiDialog(onDone) {
+  const s = S.data.settings;
+  sheet(close => {
+    const run = async () => {
+      busy(true);
+      try {
+        const snap = await call('enablePersonalAi');
+        setData(snap);
+        const r = snap.result || {};
+        if (r.ok) { close(); toast('✓ AI אישי פעיל'); if (onDone) onDone(); }
+        else if (r.needsTerms) toast('גוגל עדיין לא קיבלה את אישור התנאים – לפתוח את הקישור, לאשר, ולנסות שוב', true);
+      } catch (e) { toast(e.message, true); } finally { busy(false); }
+    };
+    return [
+      h('h3', null, '🤖 הפעלת AI אישי'),
+      h('p', null, 'כדי שניתוח קובצי הדרישות ירוץ על המכסה החינמית שלך, MoonCRM יוצרת לך מפתח Gemini אישי בחשבון הגוגל שלך. גוגל מבקשת לפני כן אישור חד-פעמי של תנאי השימוש שלה:'),
+      h('ol', { style: 'padding-inline-start:20px;margin:6px 0' },
+        h('li', null, h('a', { href: s.aiTermsUrl, target: '_blank' }, 'לפתוח את דף התנאים של גוגל ↗'), ' – לסמן את תיבת האישור וללחוץ Accept'),
+        h('li', null, 'לחזור לכאן וללחוץ "סיימתי"')),
+      h('p', { class: 'muted small' }, 'עד אז המערכת ממשיכה לעבוד עם המפתח המשותף. ל-Gemini נשלח רק תוכן הקבצים שמעלים – אף פעם לא פרטי מטופלים.'),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', onclick: run }, 'סיימתי – ליצור מפתח'),
+        h('button', { class: 'btn ghost', onclick: () => { close(); aiKeyDialog(onDone); } }, 'יש לי מפתח משלי'),
+        h('button', { class: 'btn ghost', onclick: close }, 'סגירה'))
+    ];
+  });
+}
+
 function aiKeyDialog(onDone) {
   const key = h('input', { class: 'i', placeholder: 'AIza…', autocomplete: 'off' });
   sheet(close => [
@@ -1437,7 +1536,7 @@ function uploadFlow() {
     st.working = true; paint(); busy(true);
     try {
       const r = await call('analyzeRequirementsText', freeText.value);
-      if (r.needsKey) { st.working = false; paint(); return aiKeyDialog(analyzeText); }
+      if (r.needsKey) { st.working = false; paint(); return personalAiDialog(analyzeText); }
       st.res = r; st.answers = {};
     } catch (e) { toast(e.message, true); }
     finally { st.working = false; busy(false); paint(); }
@@ -1447,7 +1546,7 @@ function uploadFlow() {
     st.working = true; paint(); busy(true);
     try {
       const r = await call('analyzeRequirementsFile', await getFile());
-      if (r.needsKey) { st.working = false; paint(); return aiKeyDialog(again); }
+      if (r.needsKey) { st.working = false; paint(); return personalAiDialog(again); }
       st.res = r; st.answers = {};
     } catch (e) { toast(e.message, true); }
     finally { st.working = false; busy(false); paint(); }
@@ -1476,7 +1575,7 @@ function uploadFlow() {
     return [
       h('div', { class: 'alert ' + (r.method === 'ai' ? 'info' : 'calm') + ' small' },
         r.method === 'ai' ? '🤖 הקובץ נותח עם Gemini' + (r.round > 1 ? ` (סבב ${r.round})` : '') : r.partial ? '⚠️ רק חלק מהקובץ זוהה בלי AI' : '✓ הקובץ בפורמט טבלת הדרישות – יובא כמו שהוא',
-        r.partial ? h('div', { style: 'margin-top:6px' }, h('button', { class: 'btn sm primary', onclick: () => { closeSheet(); aiKeyDialog(uploadFlow); } }, '🤖 חיבור Gemini לניתוח מלא')) : null,
+        r.partial ? h('div', { style: 'margin-top:6px' }, h('button', { class: 'btn sm primary', onclick: () => { closeSheet(); personalAiDialog(uploadFlow); } }, '🤖 חיבור Gemini לניתוח מלא')) : null,
         r.summary ? h('div', { style: 'margin-top:4px' }, r.summary) : null,
         r.truncated ? h('div', null, '⚠️ הקובץ ארוך מאוד – נותח רק החלק הראשון שלו') : null),
       r.warnings && r.warnings.length ? h('div', { class: 'alert small' }, r.warnings.map(w => h('div', null, '⚠️ ' + w))) : null,
@@ -1532,7 +1631,7 @@ function uploadFlow() {
         h('button', { class: 'btn primary', disabled: st.working, onclick: analyzeText }, st.working ? 'מנתח…' : 'ניתוח הטקסט'),
         h('button', { class: 'btn ghost', onclick: () => closeSheet() }, 'ביטול')),
       S.data.settings.hasAiKey ? null : h('div', { class: 'alert info small', style: 'margin-top:8px' }, 'כדי שכל קובץ ינותח עם AI צריך לחבר Gemini (פעם אחת, חינם). ',
-        h('button', { class: 'btn sm', onclick: () => aiKeyDialog() }, 'חיבור'))
+        h('button', { class: 'btn sm', onclick: () => personalAiDialog() }, 'הפעלה'))
     ]).flat(9).filter(Boolean));
   }
 
@@ -2160,20 +2259,34 @@ function termsCheck(st, g) {
 
 function viewOnboarding(g) {
   const d = g.draft || {};
-  const st = S.onb = S.onb || { name: d.senderName || '', clinic: d.clinicLocation || '', url: d.existingUrl || '', restore: !!d.existingUrl, terms: false };
+  const st = S.onb = S.onb || { name: d.senderName || '', clinic: d.clinicLocation || '', url: d.existingUrl || '', restore: !!d.existingUrl, terms: false,
+    courses: d.courses || [], cName: '', cYear: '' };
   if (S.onboardGender === undefined && d.userGender !== undefined) S.onboardGender = d.userGender;
   const field = (k, attrs) => h('input', Object.assign({ class: 'i', value: st[k], oninput: e => { st[k] = e.target.value; } }, attrs));
-  const go = async () => {
+  const go = async allowShared => {
     if (!st.name.trim()) return toast(G('כתוב את השם שלך', 'כתבי את השם שלך', 'צריך לכתוב שם'), true);
+    if (st.restore && !st.url.trim()) return toast('צריך להדביק את הקישור לגיליון ניהול המטופלים', true);
     if (!st.terms) return toast('צריך לאשר את תנאי השימוש', true);
+    if (st.cName.trim()) addCourse();
     st.working = true; renderGate(); busy(true);
+    let shared = 0;
     try {
       const snap = await call('requestAccess', { senderName: st.name, userGender: S.onboardGender || '', clinicLocation: st.clinic,
-        existingUrl: st.restore ? st.url : '', acceptTerms: true });
+        existingUrl: st.restore ? st.url : '', allowShared: !!allowShared, courses: st.courses, acceptTerms: true });
       S.onb = null; setData(snap);
       if (snap.patients) toast('✓ המערכת מוכנה');
-    } catch (e) { toast(e.message, true); }
+    } catch (e) {
+      const m = String(e.message).match(/^SHARED:(\d+)/);
+      if (m) shared = Number(m[1]); else toast(e.message, true);
+    }
     finally { busy(false); if (S.onb) { st.working = false; renderGate(); } }
+    if (shared && await ask(`הגיליון הזה משותף עם ${shared} אנשים נוספים – הם יראו את פרטי המטופלים שתזין/י. להשתמש בו בכל זאת?`, 'כן, הוא שלי', 'לא, ניצור גיליון חדש')) go(true);
+    else if (shared) { st.restore = false; renderGate(); }
+  };
+  const addCourse = () => {
+    const n = st.cName.trim(); if (!n) return;
+    if (!st.courses.some(c => c.name === n && c.year === st.cYear.trim())) st.courses.push({ name: n, year: st.cYear.trim() });
+    st.cName = ''; renderGate();
   };
   return [
     h('div', { class: 'card' },
@@ -2185,13 +2298,25 @@ function viewOnboarding(g) {
       h('label', { class: 'f' }, 'איך לפנות אליך? (גם בהודעות שנשלחות בשמך)'),
       genderSeg(S.onboardGender || '', v => { S.onboardGender = v; renderGate(); }),
       h('label', { class: 'f' }, 'המרפאה (נכנס להודעות)'), field('clinic', { placeholder: 'למשל: במרפאת הסטודנטים, קומה 2' }),
-      h('label', { class: 'row small', style: 'margin-top:12px' },
-        h('input', { type: 'checkbox', checked: st.restore, onchange: e => { st.restore = e.target.checked; renderGate(); } }),
-        'יש לי כבר גיליון של המערכת (שחזור / מכשיר חדש)'),
-      st.restore ? field('url', { placeholder: 'קישור לגיליון: https:\/\/docs.google.com/spreadsheets/d/…' }) : null,
+      h('label', { class: 'f' }, 'הקורסים שלך השנה (אפשר גם אחר כך)'),
+      st.courses.length ? h('div', { class: 'chips', style: 'flex-wrap:wrap;margin-bottom:6px' }, st.courses.map((c, i) =>
+        h('button', { class: 'chip on', title: 'הסרה', onclick: () => { st.courses.splice(i, 1); renderGate(); } }, (c.year ? c.year + '׳ · ' : '') + c.name + ' ✕'))) : null,
+      h('div', { class: 'row' },
+        h('div', { class: 'grow' }, field('cName', { placeholder: 'שם הקורס, למשל: שיקום', onkeydown: e => { if (e.key === 'Enter') addCourse(); } })),
+        h('div', { style: 'width:90px' }, field('cYear', { placeholder: 'שנה: ה' })),
+        h('button', { class: 'btn sm', onclick: addCourse }, '+ הוספה')),
+
+      h('label', { class: 'f', style: 'margin-top:12px' }, 'גיליון ניהול המטופלים'),
+      h('div', { class: 'seg' },
+        h('button', { class: st.restore ? '' : 'on', onclick: () => { st.restore = false; renderGate(); } }, 'ליצור גיליון חדש (מומלץ)'),
+        h('button', { class: st.restore ? 'on' : '', onclick: () => { st.restore = true; renderGate(); } }, 'יש לי כבר גיליון מטופלים')),
+      h('p', { class: 'muted small', style: 'margin:6px 0 0' }, st.restore
+        ? 'MoonCRM תוסיף את הלשוניות שלה (מטופלים, טיפולים, הגדרות…) לגיליון שלך, בלי לגעת בלשוניות הקיימות. לא לחבר גיליון שמשותף עם אחרים – הם יראו את פרטי המטופלים. זה גם הגיליון שאליו מקשרים את טופס הקבלה.'
+        : 'MoonCRM תיצור בדרייב שלך גיליון פרטי חדש בשם "MoonCRM" לניהול המטופלים – רק את/ה רואה אותו. אליו גם מקשרים אחר כך את טופס הקבלה. רשימת מטופלים קיימת אפשר לייבא אחרי ההקמה.'),
+      st.restore ? field('url', { placeholder: 'קישור לגיליון ניהול המטופלים: https:\/\/docs.google.com/spreadsheets/d/…', dir: 'ltr' }) : null,
       termsCheck(st, g),
       h('div', { class: 'actions' },
-        h('button', { class: 'btn primary block', disabled: st.working, onclick: go },
+        h('button', { class: 'btn primary block', disabled: st.working, onclick: () => go(false) },
           st.working ? 'רגע… (הקמת המערכת לוקחת כדקה, לא לסגור את הדף)'
             : g.licensing && !(g.license || {}).ok ? 'שליחת בקשת הצטרפות' : G('הקם את המערכת', 'הקימי את המערכת', 'הקמת המערכת'))),
       h('p', { class: 'muted small' }, 'גוגל תבקש אישור לגישה לגיליונות, ליומן, לקבצים שהמערכת עצמה יוצרת ולשליחת מייל בשמך. המערכת לא רואה קבצים אחרים בדרייב שלך.'),
@@ -2316,16 +2441,17 @@ function settingsSheet() {
       h('select', { class: 'i', style: 'width:auto', onchange: e => mutate('saveSettings', { digestHour: e.target.value }) },
         [7, 8, 9, 10, 11, 12].map(x => opt(String(x), x + ':00', x === s.digestHour)))),
     h('h3', { style: 'margin-top:16px' }, '🤖 ניתוח מסמכים (Gemini)'),
-    h('div', { class: 'row small' }, h('span', { class: 'grow' }, s.aiKeyShared ? '✓ מחובר (מפתח משותף של המערכת)' : s.hasAiKey ? '✓ מחובר' : 'לא מחובר'),
+    h('div', { class: 'row small' }, h('span', { class: 'grow' }, s.aiPersonal ? '✓ AI אישי פעיל' : s.aiKeyShared ? 'עובד עם המפתח המשותף של המערכת' : 'לא מחובר'),
       s.hasAiKey && !s.aiKeyShared
         ? h('button', { class: 'btn sm', onclick: async () => { busy(true); try { await call('setGeminiKey', ''); await load('bootstrap'); close(); toast('נותק'); } finally { busy(false); } } }, 'ניתוק')
-        : h('button', { class: 'btn sm', onclick: () => { close(); aiKeyDialog(); } }, s.aiKeyShared ? 'מפתח אישי' : 'חיבור')),
+        : h('button', { class: 'btn sm', onclick: () => { close(); personalAiDialog(); } }, '🔑 הפעלת AI אישי')),
     s.checklistHidden ? h('button', { class: 'btn ghost sm', onclick: async () => { await mutate('saveSettings', { checklistHidden: '' }); close(); go('today'); } }, '🚀 הצגת "צעדים ראשונים"') : null,
 
     h('h3', { style: 'margin-top:16px' }, 'מערכת'),
     h('div', { class: 'muted small' }, `${a.email || ''} · גרסה ${a.version}`),
     h('div', { class: 'actions' },
       h('a', { class: 'btn', href: s.sheetUrl, target: '_blank' }, '📄 הגיליון ↗'),
+      h('button', { class: 'btn', onclick: () => { close(); moveSheetDialog(); } }, '🔄 החלפת גיליון'),
       h('button', { class: 'btn', onclick: async () => {
         if (!await ask('לתקן את המערכת? הלשוניות, היומן והאוטומציות ייבדקו וייווצרו מחדש אם חסר משהו. נתונים לא נמחקים.', 'תיקון')) return;
         await mutate('repairWorkspace'); close(); toast('✓ המערכת תוקנה');
