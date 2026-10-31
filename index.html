@@ -501,7 +501,7 @@ function typing() {
 document.getElementById('view').addEventListener('focusout', () => setTimeout(() => { if (S.renderPending && !typing()) { S.renderPending = false; render(); } }, 0));
 
 function setData(snap, background) {
-  if (snap.needsOnboarding || snap.locked || snap.needsTerms) { S.data = null; S.gate = snap; renderGate(); return; }
+  if (snap.needsOnboarding || snap.locked || snap.needsTerms || snap.needsRepair) { S.data = null; S.gate = snap; renderGate(); return; }
   S.gate = null;
   S.data = snap;
   const d = snap;
@@ -2370,6 +2370,7 @@ function renderGate() {
   const lic = g.license || {};
   const screen = g.needsTerms ? viewTerms(g)
     : g.needsOnboarding ? (g.termsOk && g.licensing && !lic.ok && lic.status !== 'none' ? viewLocked(g) : viewOnboarding(g))
+    : g.needsRepair ? viewRepair(g)
     : viewLocked(g);
   document.getElementById('view').replaceChildren(...[].concat(screen).flat(9).filter(Boolean));
 }
@@ -2460,6 +2461,31 @@ function viewOnboarding(g) {
       h('p', { class: 'muted small' }, 'גוגל תבקש אישור לגישה לגיליונות, ליומן, לקבצים שהמערכת עצמה יוצרת ולשליחת מייל בשמך. המערכת לא רואה קבצים אחרים בדרייב שלך.'),
       window.mooncrmSignOut ? h('button', { class: 'btn ghost sm', onclick: () => window.mooncrmSignOut() }, '↩ החלפת חשבון') : null)
   ];
+}
+
+/** The system's main tabs were deleted from its spreadsheet (or the spreadsheet is gone): rebuild. */
+function viewRepair(g) {
+  const gone = g.missing[0] === '*';
+  const run = async mode => {
+    busy(true);
+    try {
+      const snap = await call('rebuildWorkspace', mode);
+      setData(snap);
+      toast('✓ המערכת חזרה לעבוד');
+      if (snap.result && snap.result.oldId) afterMove(snap.result);
+    } catch (e) { toast(e.message, true); } finally { busy(false); }
+  };
+  return h('div', { class: 'card' },
+    h('img', { class: 'brand-logo', src: (window.BRAND || {}).logo, alt: 'MoonCRM' }),
+    h('h2', { style: 'margin-top:0' }, '⚠️ גיליון המערכת לא שלם'),
+    gone ? h('p', null, 'גיליון ניהול המטופלים של המערכת לא נפתח – כנראה נמחק, או שההרשאה אליו הוסרה.')
+      : h('p', null, `בגיליון "${g.sheetName}" חסרות הלשוניות ${g.missing.map(n => '"' + n + '"').join(', ')} – כנראה נמחקו ידנית.`),
+    g.shared ? h('div', { class: 'alert small' }, `הגיליון הזה משותף עם ${g.shared} אנשים נוספים, ולכן מומלץ להעביר את המערכת לגיליון פרטי חדש.`) : null,
+    h('p', { class: 'muted small' }, 'החשבון והיומן נשמרים, ותורים קיימים נשארים ביומן. נתונים שנמחקו מהגיליון אפשר לשחזר מהיסטוריית הגרסאות שלו (בגיליון: קובץ ← היסטוריית גרסאות).'),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', onclick: () => run('new') }, 'יצירת גיליון פרטי חדש והמשך'),
+      gone || g.shared ? null : h('button', { class: 'btn', onclick: () => run('here') }, 'יצירת הלשוניות מחדש באותו גיליון'),
+      g.sheetUrl ? h('a', { class: 'btn ghost', href: g.sheetUrl, target: '_blank' }, 'פתיחת הגיליון ↗') : null));
 }
 
 /** Terms changed (or were never accepted on this account): accept before continuing. */
@@ -2624,7 +2650,13 @@ document.getElementById('guideBtn').addEventListener('click', () => window.open(
       clearTimeout(slow);
       if (m && IDX.p[m[1]]) openPatient(m[1]);
       else if (t) go(t[1]);
-    }).catch(() => document.getElementById('view').replaceChildren(h('div', { class: 'card empty' }, 'הטעינה נכשלה. ' + G('נסה', 'נסי', 'כדאי') + ' לרענן את הדף.')));
+    }).catch(e => {
+      clearTimeout(slow);
+      document.getElementById('view').replaceChildren(h('div', { class: 'card' },
+        h('b', {}, 'הטעינה נכשלה'),
+        h('p', { class: 'muted' }, String(e && e.message || e)),
+        h('button', { class: 'btn', onclick: () => location.reload() }, '⟳ ניסיון נוסף')));
+    });
   };
   try { google.script.url.getLocation(loc => start(loc.hash)); } catch (e) { start(location.hash.slice(1)); }
 })();
