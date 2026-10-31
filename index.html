@@ -765,6 +765,24 @@ function afterMove(r) {
 
 const GUIDE_URL = 'https:\/\/mooncrm.github.io/guide.html';
 
+/** After a move: MoonCRM's tabs are still in the previous spreadsheet until removed (or kept on purpose). */
+function oldSheetCard() {
+  const id = S.data.settings.oldWorkspace;
+  if (!id) return null;
+  const done = () => { S.data.settings.oldWorkspace = ''; render(); };
+  return h('div', { class: 'alert' },
+    h('b', null, '🧹 הלשוניות של MoonCRM עדיין נמצאות בגיליון הקודם'),
+    h('div', null, 'המערכת כבר עובדת מהגיליון החדש. אפשר להסיר מהגיליון הקודם את הלשוניות שלה – שאר הלשוניות שם לא ייגעו.'),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn primary sm', onclick: async () => {
+        busy(true);
+        try { const x = await call('cleanOldWorkspace', id); toast(`✓ הוסרו ${x.removed.length} לשוניות מ"${x.name}"`); done(); }
+        catch (e) { toast(e.message, true); } finally { busy(false); }
+      } }, 'הסרה מהגיליון הקודם'),
+      h('a', { class: 'btn sm', href: `https:\/\/docs.google.com/spreadsheets/d/${id}/edit`, target: '_blank' }, 'פתיחת הגיליון הקודם ↗'),
+      h('button', { class: 'btn ghost sm', onclick: () => call('keepOldWorkspace').then(done, e => toast(e.message, true)) }, 'להשאיר')));
+}
+
 /** "First steps" card until everything is set up (or the user hides it). */
 function firstSteps() {
   const d = S.data, s = d.settings;
@@ -789,7 +807,7 @@ function firstSteps() {
 }
 
 function viewToday() {
-  const d = S.data, todo = d.todo, out = [licenseBanner(), sharedBanner(), pendingImportsCard(), firstSteps()];
+  const d = S.data, todo = d.todo, out = [licenseBanner(), sharedBanner(), oldSheetCard(), pendingImportsCard(), firstSteps()];
   const tasks = todo.reminders.length + todo.recalls.length;
 
   if (todo.newCount) out.push(h('div', { class: 'pill-new', onclick: () => go('table', { tableFilter: 'new' }) },
